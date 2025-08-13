@@ -38,21 +38,32 @@ async function decrypt(cipher, iv) {
 }
 
 async function loadNotes() {
-  const res = await fetch('/notes');
-  const encryptedNotes = await res.json();
-  list.innerHTML = '';
-  for (const [index, { cipher, iv }] of encryptedNotes.entries()) {
-    const text = await decrypt(cipher, iv);
-    const li = document.createElement('li');
-    li.textContent = text;
-    const del = document.createElement('button');
-    del.textContent = 'Delete';
-    del.addEventListener('click', async () => {
-      await fetch('/notes/' + index, { method: 'DELETE' });
-      loadNotes();
-    });
-    li.appendChild(del);
-    list.appendChild(li);
+
+  try {
+    const res = await fetch('/notes');
+    const encryptedNotes = await res.json();
+    list.innerHTML = '';
+    for (const [index, { cipher, iv }] of encryptedNotes.entries()) {
+      try {
+        const text = await decrypt(cipher, iv);
+        const li = document.createElement('li');
+        li.textContent = text;
+        const del = document.createElement('button');
+        del.textContent = 'Delete';
+        del.addEventListener('click', async () => {
+          await fetch('/notes/' + index, { method: 'DELETE' });
+          loadNotes();
+        });
+        li.appendChild(del);
+        list.appendChild(li);
+      } catch (err) {
+        console.error('Skipping undecryptable note', err);
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load notes', err);
+
+
   }
 }
 
