@@ -1,6 +1,7 @@
 const form = document.getElementById('note-form');
 const input = document.getElementById('note-input');
 const list = document.getElementById('notes-list');
+
 let key;
 
 async function deriveKey(passphrase) {
@@ -37,6 +38,7 @@ async function decrypt(cipher, iv) {
 }
 
 async function loadNotes() {
+
   try {
     const res = await fetch('/notes');
     const encryptedNotes = await res.json();
@@ -60,6 +62,8 @@ async function loadNotes() {
     }
   } catch (err) {
     console.error('Failed to load notes', err);
+
+
   }
 }
 
@@ -82,3 +86,4 @@ window.addEventListener('DOMContentLoaded', async () => {
   key = await deriveKey(pass);
   loadNotes();
 });
+
