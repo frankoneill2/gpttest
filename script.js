@@ -1,6 +1,7 @@
 const form = document.getElementById('note-form');
 const input = document.getElementById('note-input');
 const list = document.getElementById('notes-list');
+
 let key;
 
 async function deriveKey(passphrase) {
@@ -74,3 +75,4 @@ window.addEventListener('DOMContentLoaded', async () => {
   key = await deriveKey(pass);
   loadNotes();
 });
+

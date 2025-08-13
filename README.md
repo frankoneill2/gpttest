@@ -1,3 +1,4 @@
+
 # Collaborative E2E Encrypted Note App
 
 This web app lets multiple devices share notes through a lightweight Node server.
@@ -15,3 +16,4 @@ read them.
 Type a note and click **Add Note**. The note is encrypted and sent to the server
 so it appears on other devices using the same passphrase. Use the Delete button
 to remove a note from the shared store.
+
