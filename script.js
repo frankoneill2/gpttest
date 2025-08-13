@@ -1,6 +1,6 @@
-const form = document.getElementById('note-form');
-const input = document.getElementById('note-input');
-const list = document.getElementById('notes-list');
+let form;
+let input;
+let list;
 
 let key;
 
@@ -38,7 +38,6 @@ async function decrypt(cipher, iv) {
 }
 
 async function loadNotes() {
-
   try {
     const res = await fetch('/notes');
     const encryptedNotes = await res.json();
@@ -62,28 +61,33 @@ async function loadNotes() {
     }
   } catch (err) {
     console.error('Failed to load notes', err);
-
-
   }
 }
 
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  const text = input.value.trim();
-  if (!text) return;
-  const encrypted = await encrypt(text);
-  await fetch('/notes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(encrypted)
+function bindForm() {
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (!text) return;
+    const encrypted = await encrypt(text);
+    await fetch('/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(encrypted)
+    });
+    input.value = '';
+    loadNotes();
   });
-  input.value = '';
-  loadNotes();
-});
+}
 
 window.addEventListener('DOMContentLoaded', async () => {
+  form = document.getElementById('note-form');
+  input = document.getElementById('note-input');
+  list = document.getElementById('notes-list');
+  bindForm();
   const pass = prompt('Enter shared passphrase');
-  key = await deriveKey(pass);
-  loadNotes();
+  if (pass) {
+    key = await deriveKey(pass);
+    loadNotes();
+  }
 });
-
