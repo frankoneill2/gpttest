@@ -1,6 +1,7 @@
 let form;
 let input;
 let list;
+
 let key;
 
 async function deriveKey(passphrase) {
