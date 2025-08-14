@@ -1,3 +1,4 @@
+
 # Collaborative E2E Encrypted Note App
 
 This web app lets multiple devices share notes through a lightweight Node server.
