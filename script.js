@@ -2,7 +2,10 @@
 
 // --- Firebase: import from the CDN (no npm needed)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
-import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+import {
+  getFirestore, collection, addDoc, onSnapshot,
+  deleteDoc, doc, query, orderBy, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
 import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 
 // --- Your Firebase config (safe to commit; rules protect data)
@@ -22,15 +25,13 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 await signInAnonymously(auth); // gives a uid for security rules
 
-// --- Your existing DOM + crypto helpers (unchanged)
+// --- DOM + crypto helpers
 let form, input, list;
-
 let key;
 
 async function deriveKey(passphrase) {
   const enc = new TextEncoder();
-
-  const salt = enc.encode('shared-salt'); // for production: use a random per-space salt
+  const salt = enc.encode('shared-salt'); // TODO: production: use a random per-space salt
 
   const baseKey = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
@@ -54,13 +55,18 @@ async function encrypt(text) {
 
 async function decrypt(cipher, iv) {
   const dec = new TextDecoder();
-  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(iv) }, key, b64ToBuf(cipher));
+  const plain = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: new Uint8Array(iv) },
+    key,
+    b64ToBuf(cipher) // Uint8Array is fine here
+  );
   return dec.decode(plain);
 }
 
 // --- Firestore-backed UI
 function startRealtimeNotes() {
-  // Sort newest first (optional)
+
+
   const q = query(collection(db, 'notes'), orderBy('createdAt', 'desc'));
   onSnapshot(q, async (snap) => {
     list.innerHTML = '';
