@@ -24,11 +24,14 @@ await signInAnonymously(auth); // gives a uid for security rules
 
 // --- Your existing DOM + crypto helpers (unchanged)
 let form, input, list;
+
 let key;
 
 async function deriveKey(passphrase) {
   const enc = new TextEncoder();
+
   const salt = enc.encode('shared-salt'); // for production: use a random per-space salt
+
   const baseKey = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
@@ -104,4 +107,5 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   startRealtimeNotes();
 });
+
 

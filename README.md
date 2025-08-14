@@ -1,3 +1,4 @@
+
 # Collaborative E2E Encrypted Note App
 
 This web app stores notes in Firebase Firestore. Notes are encrypted in the browser with a shared passphrase, so the database only sees ciphertext.
@@ -12,3 +13,4 @@ This web app stores notes in Firebase Firestore. Notes are encrypted in the brow
 ## Usage
 
 When prompted, enter the same passphrase on every device. Each note you add is encrypted with AES-GCM and written to the `notes` collection in Firestore. Devices using the same passphrase decrypt and display the shared notes. Notes created with different passphrases remain unreadable and are ignored.
+
