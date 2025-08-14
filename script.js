@@ -32,6 +32,7 @@ let key;
 async function deriveKey(passphrase) {
   const enc = new TextEncoder();
   const salt = enc.encode('shared-salt'); // TODO: production: use a random per-space salt
+
   const baseKey = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
   return crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
@@ -64,6 +65,8 @@ async function decrypt(cipher, iv) {
 
 // --- Firestore-backed UI
 function startRealtimeNotes() {
+
+
   const q = query(collection(db, 'notes'), orderBy('createdAt', 'desc'));
   onSnapshot(q, async (snap) => {
     list.innerHTML = '';
@@ -110,3 +113,5 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   startRealtimeNotes();
 });
+
+
