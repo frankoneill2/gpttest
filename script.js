@@ -23,7 +23,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
-await signInAnonymously(auth); // gives a uid for security rules
 
 // --- DOM + crypto helpers
 let form, input, list;
@@ -106,6 +105,12 @@ window.addEventListener('DOMContentLoaded', async () => {
   input = document.getElementById('note-input');
   list = document.getElementById('notes-list');
   bindForm();
+  try {
+    await signInAnonymously(auth); // gives a uid for security rules
+  } catch (err) {
+    console.error('Failed to sign in anonymously', err);
+    return;
+  }
 
   const pass = prompt('Enter shared passphrase');
   if (!pass) return;
