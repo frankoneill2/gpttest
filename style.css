@@ -1,6 +1,7 @@
 :root {
   --bg: #f5f7fa;
   --bg2: #e0e7ff;
+
   --card-bg: #ffffff;
   --primary: #2563eb;
   --primary-hover: #1e40af;
@@ -35,6 +36,7 @@ h3 {
   font-weight: 600;
   margin: 0 0 1rem;
   color: var(--primary);
+
 }
 
 ul {
@@ -146,10 +148,12 @@ button.primary:hover {
 }
 
 .task-actions {
+
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
+
 
 .task-actions select {
   flex: 1;
@@ -175,6 +179,7 @@ button.primary:hover {
 .add-comment-btn {
   color: #10b981;
 }
+
 
 .status-select {
   border: none;
@@ -205,6 +210,7 @@ button.primary:hover {
   color: var(--muted);
 }
 
+
 .task-item[data-status="open"] {
   border-left: 4px solid #f87171;
   background: #fee2e2;
@@ -218,6 +224,7 @@ button.primary:hover {
 .task-item[data-status="complete"] {
   border-left: 4px solid #34d399;
   background: #dcfce7;
+
 }
 
 .comments {
@@ -237,6 +244,7 @@ button.primary:hover {
 
 .comment-form input {
   flex: 1;
+
 }
 
 @media (min-width: 600px) {

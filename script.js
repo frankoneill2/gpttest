@@ -129,6 +129,7 @@ function startRealtimeTasks(caseId) {
         actions.className = 'task-actions';
         li.appendChild(actions);
 
+
         const select = document.createElement('select');
         select.className = 'status-select';
         ['open','in progress','complete'].forEach(s => {
@@ -143,7 +144,9 @@ function startRealtimeTasks(caseId) {
           select.dataset.status = select.value;
           li.dataset.status = select.value;
         });
+
         actions.appendChild(select);
+
 
         const del = document.createElement('button');
         del.className = 'icon-btn delete-btn';
@@ -152,6 +155,7 @@ function startRealtimeTasks(caseId) {
         del.addEventListener('click', async () => {
           await deleteDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id));
         });
+
         actions.appendChild(del);
 
         const toggle = document.createElement('button');
@@ -194,8 +198,10 @@ function startRealtimeTasks(caseId) {
         toggle.addEventListener('click', () => {
           const hidden = commentsList.hidden;
           commentsList.hidden = commentForm.hidden = !hidden;
+
           toggle.textContent = hidden ? '✖' : '💬';
           toggle.setAttribute('aria-label', hidden ? 'Hide comments' : 'Show comments');
+
         });
 
         taskListEl.appendChild(li);
