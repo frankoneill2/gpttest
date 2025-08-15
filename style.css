@@ -1,5 +1,6 @@
 body { font-family: sans-serif; margin: 2rem; }
-#note-form { margin-bottom: 1rem; }
-#note-input { width: 100%; height: 4rem; }
-#notes-list li { margin-bottom: .5rem; }
-#notes-list button { margin-left: 1rem; }
+#case-form { margin-bottom: 1rem; }
+#case-input { width: 100%; }
+#cases-list li { margin-bottom: .5rem; cursor: pointer; }
+#cases-list li:hover { text-decoration: underline; }
+#case-detail { margin-top: 2rem; }
