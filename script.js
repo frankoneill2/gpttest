@@ -127,6 +127,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
+
   username = (prompt('Enter username') || '').trim();
   if (!username) return;
 
