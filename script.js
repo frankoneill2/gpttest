@@ -26,7 +26,7 @@ const auth = getAuth(app);
 
 // --- DOM + crypto helpers
 let form, input, list;
-let key;
+let key, username;
 
 async function deriveKey(passphrase) {
   const enc = new TextEncoder();
@@ -70,11 +70,11 @@ function startRealtimeNotes() {
   onSnapshot(q, async (snap) => {
     list.innerHTML = '';
     for (const docSnap of snap.docs) {
-      const { cipher, iv } = docSnap.data();
+      const { cipher, iv, username: noteUser } = docSnap.data();
       try {
         const text = await decrypt(cipher, iv);
         const li = document.createElement('li');
-        li.textContent = text;
+        li.textContent = noteUser ? `${noteUser}: ${text}` : text;
         const edit = document.createElement('button');
         edit.textContent = 'Edit';
         edit.addEventListener('click', async () => {
@@ -110,7 +110,7 @@ function bindForm() {
     const text = input.value.trim();
     if (!text) return;
     const encrypted = await encrypt(text);
-    await addDoc(collection(db, 'notes'), encrypted);
+    await addDoc(collection(db, 'notes'), { ...encrypted, username });
     input.value = '';
   });
 }
@@ -126,6 +126,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     console.error('Failed to sign in anonymously', err);
     return;
   }
+
+
+  username = (prompt('Enter username') || '').trim();
+  if (!username) return;
 
   const pass = prompt('Enter shared passphrase');
   if (!pass) return;
