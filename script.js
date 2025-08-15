@@ -117,41 +117,70 @@ function startRealtimeTasks(caseId) {
         const text = await decryptText(data.textCipher, data.textIv);
         const status = await decryptText(data.statusCipher, data.statusIv);
         const li = document.createElement('li');
-        const span = document.createElement('span');
-        span.textContent = text;
-        li.appendChild(span);
+        li.className = 'task-item';
+        li.dataset.status = status;
+
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'task-title';
+        titleSpan.textContent = text;
+        li.appendChild(titleSpan);
+
+        const actions = document.createElement('div');
+        actions.className = 'task-actions';
+        li.appendChild(actions);
 
         const select = document.createElement('select');
+        select.className = 'status-select';
         ['open','in progress','complete'].forEach(s => {
           const opt = document.createElement('option');
           opt.value = s; opt.textContent = s; select.appendChild(opt);
         });
         select.value = status;
+        select.dataset.status = status;
         select.addEventListener('change', async () => {
           const { cipher, iv } = await encryptText(select.value);
           await updateDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id), { statusCipher: cipher, statusIv: iv });
+          select.dataset.status = select.value;
+          li.dataset.status = select.value;
         });
-        li.appendChild(select);
+        actions.appendChild(select);
 
         const del = document.createElement('button');
-        del.textContent = 'Delete';
+        del.className = 'icon-btn delete-btn';
+        del.textContent = '🗑';
+        del.setAttribute('aria-label', 'Delete task');
         del.addEventListener('click', async () => {
           await deleteDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id));
         });
-        li.appendChild(del);
+        actions.appendChild(del);
+
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'icon-btn comment-toggle';
+        toggle.textContent = '💬';
+        toggle.setAttribute('aria-label', 'Show comments');
+        actions.appendChild(toggle);
 
         // comments section
+        const commentSection = document.createElement('div');
+        commentSection.className = 'comment-section';
+        commentSection.hidden = true;
+
         const commentsList = document.createElement('ul');
         commentsList.className = 'comments';
-        li.appendChild(commentsList);
+        commentSection.appendChild(commentsList);
         startRealtimeComments(caseId, docSnap.id, commentsList);
 
         const commentForm = document.createElement('form');
+        commentForm.className = 'comment-form';
         const commentInput = document.createElement('input');
         commentInput.placeholder = 'Add comment';
         commentForm.appendChild(commentInput);
         const commentBtn = document.createElement('button');
-        commentBtn.textContent = 'Add';
+        commentBtn.className = 'icon-btn add-comment-btn';
+        commentBtn.type = 'submit';
+        commentBtn.textContent = '➕';
+        commentBtn.setAttribute('aria-label', 'Add comment');
         commentForm.appendChild(commentBtn);
         commentForm.addEventListener('submit', async e => {
           e.preventDefault();
@@ -163,7 +192,15 @@ function startRealtimeTasks(caseId) {
           });
           commentInput.value = '';
         });
-        li.appendChild(commentForm);
+        commentSection.appendChild(commentForm);
+        li.appendChild(commentSection);
+
+        toggle.addEventListener('click', () => {
+          const hidden = commentSection.hidden;
+          commentSection.hidden = !hidden;
+          toggle.textContent = hidden ? '✖' : '💬';
+          toggle.setAttribute('aria-label', hidden ? 'Hide comments' : 'Show comments');
+        });
 
         taskListEl.appendChild(li);
       } catch (err) {
@@ -234,6 +271,10 @@ function bindCaseForm() {
 }
 
 function bindTaskForm() {
+  taskStatus.addEventListener('change', () => {
+    taskStatus.dataset.status = taskStatus.value;
+  });
+
   taskForm.addEventListener('submit', async e => {
     e.preventDefault();
     if (!currentCaseId) return;
@@ -247,6 +288,7 @@ function bindTaskForm() {
     });
     taskInput.value = '';
     taskStatus.value = 'open';
+    taskStatus.dataset.status = 'open';
   });
 }
 
