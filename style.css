@@ -1,5 +1,7 @@
 :root {
   --bg: #f5f7fa;
+  --bg2: #e0e7ff;
+
   --card-bg: #ffffff;
   --primary: #2563eb;
   --primary-hover: #1e40af;
@@ -17,7 +19,7 @@
 body {
   margin: 0;
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  background: var(--bg);
+  background: linear-gradient(var(--bg), var(--bg2));
   color: var(--text);
   line-height: 1.5;
 }
@@ -33,6 +35,8 @@ h2,
 h3 {
   font-weight: 600;
   margin: 0 0 1rem;
+  color: var(--primary);
+
 }
 
 ul {
@@ -47,6 +51,7 @@ ul {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   padding: 1rem;
   margin-bottom: 1.5rem;
+  border-top: 4px solid var(--primary);
 }
 
 .stack > * + * {
@@ -138,15 +143,43 @@ button.primary:hover {
   gap: 0.5rem;
 }
 
-.task-header {
+.task-title {
+  font-weight: 500;
+}
+
+.task-actions {
+
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.task-header span {
+
+.task-actions select {
   flex: 1;
 }
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  padding: 0.25rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: #e0e7ff;
+}
+
+.delete-btn {
+  color: #ef4444;
+}
+
+.add-comment-btn {
+  color: #10b981;
+}
+
 
 .status-select {
   border: none;
@@ -177,10 +210,21 @@ button.primary:hover {
   color: var(--muted);
 }
 
-.comment-toggle {
-  background: none;
-  color: var(--primary);
-  padding: 0.25rem 0.5rem;
+
+.task-item[data-status="open"] {
+  border-left: 4px solid #f87171;
+  background: #fee2e2;
+}
+
+.task-item[data-status="in progress"] {
+  border-left: 4px solid #fbbf24;
+  background: #fef3c7;
+}
+
+.task-item[data-status="complete"] {
+  border-left: 4px solid #34d399;
+  background: #dcfce7;
+
 }
 
 .comments {

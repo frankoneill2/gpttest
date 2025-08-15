@@ -120,13 +120,15 @@ function startRealtimeTasks(caseId) {
         li.className = 'task-item';
         li.dataset.status = status;
 
-        const header = document.createElement('div');
-        header.className = 'task-header';
-        li.appendChild(header);
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'task-title';
+        titleSpan.textContent = text;
+        li.appendChild(titleSpan);
 
-        const span = document.createElement('span');
-        span.textContent = text;
-        header.appendChild(span);
+        const actions = document.createElement('div');
+        actions.className = 'task-actions';
+        li.appendChild(actions);
+
 
         const select = document.createElement('select');
         select.className = 'status-select';
@@ -142,19 +144,25 @@ function startRealtimeTasks(caseId) {
           select.dataset.status = select.value;
           li.dataset.status = select.value;
         });
-        header.appendChild(select);
+
+        actions.appendChild(select);
+
 
         const del = document.createElement('button');
-        del.textContent = 'Delete';
+        del.className = 'icon-btn delete-btn';
+        del.textContent = '🗑';
+        del.setAttribute('aria-label', 'Delete task');
         del.addEventListener('click', async () => {
           await deleteDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id));
         });
-        header.appendChild(del);
+
+        actions.appendChild(del);
 
         const toggle = document.createElement('button');
-        toggle.textContent = 'Comments';
-        toggle.className = 'comment-toggle';
-        header.appendChild(toggle);
+        toggle.className = 'icon-btn comment-toggle';
+        toggle.textContent = '💬';
+        toggle.setAttribute('aria-label', 'Show comments');
+        actions.appendChild(toggle);
 
         // comments section
         const commentsList = document.createElement('ul');
@@ -170,7 +178,10 @@ function startRealtimeTasks(caseId) {
         commentInput.placeholder = 'Add comment';
         commentForm.appendChild(commentInput);
         const commentBtn = document.createElement('button');
-        commentBtn.textContent = 'Add';
+        commentBtn.className = 'icon-btn add-comment-btn';
+        commentBtn.type = 'submit';
+        commentBtn.textContent = '➕';
+        commentBtn.setAttribute('aria-label', 'Add comment');
         commentForm.appendChild(commentBtn);
         commentForm.addEventListener('submit', async e => {
           e.preventDefault();
@@ -187,7 +198,10 @@ function startRealtimeTasks(caseId) {
         toggle.addEventListener('click', () => {
           const hidden = commentsList.hidden;
           commentsList.hidden = commentForm.hidden = !hidden;
-          toggle.textContent = hidden ? 'Hide Comments' : 'Comments';
+
+          toggle.textContent = hidden ? '✖' : '💬';
+          toggle.setAttribute('aria-label', hidden ? 'Hide comments' : 'Show comments');
+
         });
 
         taskListEl.appendChild(li);
