@@ -2,21 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Collaborative Notes</title>
+  <title>Case Manager</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Collaborative Notes</h1>
-  <p>Enter a shared passphrase when prompted to encrypt notes end-to-end.</p>
+  <h1>Cases</h1>
 
-  <form id="note-form">
-    <textarea id="note-input" placeholder="Write a note..."></textarea>
-    <button type="submit">Add Note</button>
+  <form id="case-form">
+    <input id="case-input" placeholder="New case title" />
+    <button type="submit">Add Case</button>
   </form>
-  <ul id="notes-list"></ul>
-  <script type="module" src="script.js"></script>
+  <ul id="cases-list"></ul>
 
-  <script type="module" src="script.js"></script>
+  <div id="case-detail" style="display:none;">
+    <h2 id="case-title"></h2>
+    <h3>Tasks</h3>
+    <ul id="tasks-list"></ul>
+    <h3>Notes</h3>
+    <ul id="case-notes-list"></ul>
+  </div>
+
+  <script type="module" src="cases.js"></script>
 
 </body>
 </html>
