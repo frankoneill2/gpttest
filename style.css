@@ -146,6 +146,7 @@ button.primary:hover {
 }
 
 .task-actions {
+
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -205,6 +206,7 @@ button.primary:hover {
   color: var(--muted);
 }
 
+
 .task-item[data-status="open"] {
   border-left: 4px solid #f87171;
   background: #fee2e2;
@@ -218,9 +220,11 @@ button.primary:hover {
 .task-item[data-status="complete"] {
   border-left: 4px solid #34d399;
   background: #dcfce7;
+
 }
 
 .comment-section {
+
   margin-left: 1.5rem;
 }
 
@@ -232,10 +236,12 @@ button.primary:hover {
 .comment-form {
   display: flex;
   gap: 0.5rem;
+
 }
 
 .comment-form input {
   flex: 1;
+
 }
 
 @media (min-width: 600px) {
