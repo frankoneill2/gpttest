@@ -200,6 +200,7 @@ button.primary:hover {
 
 .comment-form input {
   flex: 1;
+
 }
 
 @media (min-width: 600px) {
