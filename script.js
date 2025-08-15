@@ -80,7 +80,7 @@ function startRealtimeTasks() {
   onSnapshot(q, async (snap) => {
     tasksList.innerHTML = '';
     for (const docSnap of snap.docs) {
-      const { cipher, iv, status, username: taskUser } = docSnap.data();
+      const { cipher, iv, status = 'open', username: taskUser } = docSnap.data();
       try {
         const text = await decrypt(cipher, iv);
         const li = document.createElement('li');
@@ -168,7 +168,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const derived = await deriveKey(pass);
   setKey(derived);
 
-  // Create a new case (or you could select an existing one)
+  // Create a new case (or change this to pick an existing one)
   const caseTitle = (prompt('Enter case title') || '').trim();
   if (!caseTitle) return;
   const caseRef = await addDoc(collection(db, 'cases'), {
