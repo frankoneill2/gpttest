@@ -129,6 +129,7 @@ function startRealtimeTasks(caseId) {
         actions.className = 'task-actions';
         li.appendChild(actions);
 
+
         const select = document.createElement('select');
         select.className = 'status-select';
         ['open','in progress','complete'].forEach(s => {
@@ -145,6 +146,7 @@ function startRealtimeTasks(caseId) {
         });
         actions.appendChild(select);
 
+
         const del = document.createElement('button');
         del.className = 'icon-btn delete-btn';
         del.textContent = '🗑';
@@ -152,10 +154,13 @@ function startRealtimeTasks(caseId) {
         del.addEventListener('click', async () => {
           await deleteDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id));
         });
+
+
         actions.appendChild(del);
 
         const toggle = document.createElement('button');
         toggle.type = 'button';
+
         toggle.className = 'icon-btn comment-toggle';
         toggle.textContent = '💬';
         toggle.setAttribute('aria-label', 'Show comments');
@@ -168,10 +173,12 @@ function startRealtimeTasks(caseId) {
 
         const commentsList = document.createElement('ul');
         commentsList.className = 'comments';
+
         commentSection.appendChild(commentsList);
 
         const commentForm = document.createElement('form');
         commentForm.className = 'comment-form';
+
         const commentInput = document.createElement('input');
         commentInput.placeholder = 'Add comment';
         commentForm.appendChild(commentInput);
@@ -194,16 +201,20 @@ function startRealtimeTasks(caseId) {
         commentSection.appendChild(commentForm);
         li.appendChild(commentSection);
 
+
         let commentsLoaded = false;
+
         toggle.addEventListener('click', () => {
           const hidden = commentSection.hidden;
           commentSection.hidden = !hidden;
           toggle.textContent = hidden ? '✖' : '💬';
           toggle.setAttribute('aria-label', hidden ? 'Hide comments' : 'Show comments');
+
           if (hidden && !commentsLoaded) {
             startRealtimeComments(caseId, docSnap.id, commentsList);
             commentsLoaded = true;
           }
+
         });
 
         taskListEl.appendChild(li);
