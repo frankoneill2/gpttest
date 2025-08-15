@@ -17,13 +17,25 @@
   <div id="case-detail" style="display:none;">
     <h2 id="case-title"></h2>
     <h3>Tasks</h3>
+    <form id="task-form">
+      <input id="task-input" placeholder="New task" />
+      <select id="task-status">
+        <option value="open">Open</option>
+        <option value="in-progress">In Progress</option>
+        <option value="done">Done</option>
+      </select>
+      <input id="task-note" placeholder="Task note" />
+      <button type="submit">Add Task</button>
+    </form>
     <ul id="tasks-list"></ul>
     <h3>Notes</h3>
+    <form id="note-form">
+      <input id="note-input" placeholder="New note" />
+      <button type="submit">Add Note</button>
+    </form>
     <ul id="case-notes-list"></ul>
   </div>
 
   <script type="module" src="cases.js"></script>
-
-  <script type="module" src="script.js"></script>
 </body>
 </html>
