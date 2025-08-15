@@ -117,36 +117,55 @@ function startRealtimeTasks(caseId) {
         const text = await decryptText(data.textCipher, data.textIv);
         const status = await decryptText(data.statusCipher, data.statusIv);
         const li = document.createElement('li');
+        li.className = 'task-item';
+        li.dataset.status = status;
+
+        const header = document.createElement('div');
+        header.className = 'task-header';
+        li.appendChild(header);
+
         const span = document.createElement('span');
         span.textContent = text;
-        li.appendChild(span);
+        header.appendChild(span);
 
         const select = document.createElement('select');
+        select.className = 'status-select';
         ['open','in progress','complete'].forEach(s => {
           const opt = document.createElement('option');
           opt.value = s; opt.textContent = s; select.appendChild(opt);
         });
         select.value = status;
+        select.dataset.status = status;
         select.addEventListener('change', async () => {
           const { cipher, iv } = await encryptText(select.value);
           await updateDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id), { statusCipher: cipher, statusIv: iv });
+          select.dataset.status = select.value;
+          li.dataset.status = select.value;
         });
-        li.appendChild(select);
+        header.appendChild(select);
 
         const del = document.createElement('button');
         del.textContent = 'Delete';
         del.addEventListener('click', async () => {
           await deleteDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id));
         });
-        li.appendChild(del);
+        header.appendChild(del);
+
+        const toggle = document.createElement('button');
+        toggle.textContent = 'Comments';
+        toggle.className = 'comment-toggle';
+        header.appendChild(toggle);
 
         // comments section
         const commentsList = document.createElement('ul');
         commentsList.className = 'comments';
+        commentsList.hidden = true;
         li.appendChild(commentsList);
         startRealtimeComments(caseId, docSnap.id, commentsList);
 
         const commentForm = document.createElement('form');
+        commentForm.className = 'comment-form';
+        commentForm.hidden = true;
         const commentInput = document.createElement('input');
         commentInput.placeholder = 'Add comment';
         commentForm.appendChild(commentInput);
@@ -164,6 +183,12 @@ function startRealtimeTasks(caseId) {
           commentInput.value = '';
         });
         li.appendChild(commentForm);
+
+        toggle.addEventListener('click', () => {
+          const hidden = commentsList.hidden;
+          commentsList.hidden = commentForm.hidden = !hidden;
+          toggle.textContent = hidden ? 'Hide Comments' : 'Comments';
+        });
 
         taskListEl.appendChild(li);
       } catch (err) {
@@ -234,6 +259,10 @@ function bindCaseForm() {
 }
 
 function bindTaskForm() {
+  taskStatus.addEventListener('change', () => {
+    taskStatus.dataset.status = taskStatus.value;
+  });
+
   taskForm.addEventListener('submit', async e => {
     e.preventDefault();
     if (!currentCaseId) return;
@@ -247,6 +276,7 @@ function bindTaskForm() {
     });
     taskInput.value = '';
     taskStatus.value = 'open';
+    taskStatus.dataset.status = 'open';
   });
 }
 

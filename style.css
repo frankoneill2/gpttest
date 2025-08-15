@@ -132,12 +132,75 @@ button.primary:hover {
   color: var(--primary);
 }
 
-#task-list li select {
-  margin-left: 0.5rem;
+#task-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-#task-list li button {
-  margin-left: 0.5rem;
+.task-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.task-header span {
+  flex: 1;
+}
+
+.status-select {
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-select[data-status="open"] {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-select[data-status="in progress"] {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-select[data-status="complete"] {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.task-item[data-status="complete"] span {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.comment-toggle {
+  background: none;
+  color: var(--primary);
+  padding: 0.25rem 0.5rem;
+}
+
+.comments {
+  margin-left: 1.5rem;
+}
+
+.comments li {
+  border: none;
+  padding: 0.25rem 0;
+}
+
+.comment-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: 1.5rem;
+}
+
+.comment-form input {
+  flex: 1;
+
 }
 
 @media (min-width: 600px) {
