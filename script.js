@@ -4,9 +4,10 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
 import {
   getFirestore, collection, addDoc, onSnapshot,
-  deleteDoc, updateDoc, doc, query, orderBy, serverTimestamp
+  deleteDoc, updateDoc, doc, query, orderBy
 } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
 import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
+import { deriveKey, setKey, encrypt, decrypt } from './crypto.js';
 
 // --- Your Firebase config (safe to commit; rules protect data)
 const firebaseConfig = {
@@ -25,6 +26,7 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 
 // --- DOM + crypto helpers
+
 let noteForm, noteInput, notesList;
 let taskForm, taskInput, taskStatus, tasksList;
 let key, username, caseId;
@@ -46,22 +48,7 @@ async function deriveKey(passphrase) {
 function bufToB64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
 function b64ToBuf(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
 
-async function encrypt(text) {
-  const enc = new TextEncoder();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(text));
-  return { cipher: bufToB64(cipher), iv: Array.from(iv), createdAt: serverTimestamp() };
-}
 
-async function decrypt(cipher, iv) {
-  const dec = new TextDecoder();
-  const plain = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: new Uint8Array(iv) },
-    key,
-    b64ToBuf(cipher) // Uint8Array is fine here
-  );
-  return dec.decode(plain);
-}
 
 // --- Firestore-backed UI
 function startRealtimeNotes() {
@@ -179,7 +166,18 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   const pass = prompt('Enter shared passphrase');
   if (!pass) return;
-  key = await deriveKey(pass);
+  const derived = await deriveKey(pass);
+  setKey(derived);
+
+  const caseTitle = (prompt('Enter case title') || '').trim();
+  if (!caseTitle) return;
+  const caseRef = await addDoc(collection(db, 'cases'), {
+    title: caseTitle,
+    ownerUid: auth.currentUser.uid,
+    createdAt: serverTimestamp(),
+  });
+  caseId = caseRef.id;
+
 
   const caseTitle = (prompt('Enter case title') || '').trim();
   if (!caseTitle) return;
