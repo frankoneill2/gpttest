@@ -2,21 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Collaborative Notes</title>
+  <title>Case Tasks & Notes</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Collaborative Notes</h1>
-  <p>Enter a shared passphrase when prompted to encrypt notes end-to-end.</p>
+  <div id="case-list-section">
+    <h1>Cases</h1>
+    <ul id="case-list"></ul>
+    <form id="case-form">
+      <input id="case-input" placeholder="New case title">
+      <button type="submit">Add Case</button>
+    </form>
+  </div>
 
-  <form id="note-form">
-    <textarea id="note-input" placeholder="Write a note..."></textarea>
-    <button type="submit">Add Note</button>
-  </form>
-  <ul id="notes-list"></ul>
+  <div id="case-detail" hidden>
+    <button id="back-btn">Back</button>
+    <h2 id="case-title"></h2>
+
+    <section id="tasks">
+      <h3>Tasks</h3>
+      <form id="task-form">
+        <input id="task-input" placeholder="Task description">
+        <select id="task-status">
+          <option value="open">Open</option>
+          <option value="in progress">In Progress</option>
+          <option value="complete">Complete</option>
+        </select>
+        <button type="submit">Add Task</button>
+      </form>
+      <ul id="task-list"></ul>
+    </section>
+
+    <section id="notes">
+      <h3>Notes</h3>
+      <form id="note-form">
+        <textarea id="note-input" placeholder="Add note..."></textarea>
+        <button type="submit">Add Note</button>
+      </form>
+      <ul id="notes-list"></ul>
+    </section>
+  </div>
+
   <script type="module" src="script.js"></script>
-
-  <script type="module" src="script.js"></script>
-
 </body>
 </html>

@@ -1,5 +1,8 @@
 body { font-family: sans-serif; margin: 2rem; }
-#note-form { margin-bottom: 1rem; }
-#note-input { width: 100%; height: 4rem; }
-#notes-list li { margin-bottom: .5rem; }
-#notes-list button { margin-left: 1rem; }
+form { margin: 1rem 0; }
+textarea { width: 100%; height: 4rem; }
+#case-list li { cursor: pointer; margin-bottom: .5rem; }
+#task-list li { margin-bottom: .5rem; }
+#task-list select { margin-left: .5rem; }
+#task-list button { margin-left: .5rem; }
+.comments { margin-left: 1.5rem; font-size: 0.9em; }
