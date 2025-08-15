@@ -224,8 +224,11 @@ button.primary:hover {
 }
 
 .comment-section {
-
   margin-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
 }
 
 .comments li {
@@ -241,7 +244,6 @@ button.primary:hover {
 
 .comment-form input {
   flex: 1;
-
 }
 
 @media (min-width: 600px) {

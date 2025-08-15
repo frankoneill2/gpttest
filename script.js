@@ -144,7 +144,6 @@ function startRealtimeTasks(caseId) {
           select.dataset.status = select.value;
           li.dataset.status = select.value;
         });
-        
         actions.appendChild(select);
 
 
@@ -155,6 +154,7 @@ function startRealtimeTasks(caseId) {
         del.addEventListener('click', async () => {
           await deleteDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id));
         });
+
 
         actions.appendChild(del);
 
@@ -175,8 +175,6 @@ function startRealtimeTasks(caseId) {
         commentsList.className = 'comments';
 
         commentSection.appendChild(commentsList);
-
-        startRealtimeComments(caseId, docSnap.id, commentsList);
 
         const commentForm = document.createElement('form');
         commentForm.className = 'comment-form';
@@ -203,19 +201,19 @@ function startRealtimeTasks(caseId) {
         commentSection.appendChild(commentForm);
         li.appendChild(commentSection);
 
+
+        let commentsLoaded = false;
+
         toggle.addEventListener('click', () => {
           const hidden = commentSection.hidden;
           commentSection.hidden = !hidden;
           toggle.textContent = hidden ? '✖' : '💬';
           toggle.setAttribute('aria-label', hidden ? 'Hide comments' : 'Show comments');
-        });
 
-        toggle.addEventListener('click', () => {
-          const hidden = commentsList.hidden;
-          commentsList.hidden = commentForm.hidden = !hidden;
-
-          toggle.textContent = hidden ? '✖' : '💬';
-          toggle.setAttribute('aria-label', hidden ? 'Hide comments' : 'Show comments');
+          if (hidden && !commentsLoaded) {
+            startRealtimeComments(caseId, docSnap.id, commentsList);
+            commentsLoaded = true;
+          }
 
         });
 
@@ -228,11 +226,13 @@ function startRealtimeTasks(caseId) {
 }
 
 function startRealtimeComments(caseId, taskId, listEl) {
-  const q = query(collection(db, 'cases', caseId, 'tasks', taskId, 'comments'), orderBy('createdAt', 'desc'));
+  const q = collection(db, 'cases', caseId, 'tasks', taskId, 'comments');
   onSnapshot(q, async snap => {
+    const docs = snap.docs
+      .map(s => ({ id: s.id, ...s.data() }))
+      .sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
     listEl.innerHTML = '';
-    for (const docSnap of snap.docs) {
-      const { cipher, iv, username: user } = docSnap.data();
+    for (const { cipher, iv, username: user } of docs) {
       try {
         const text = await decryptText(cipher, iv);
         const li = document.createElement('li');
@@ -242,7 +242,7 @@ function startRealtimeComments(caseId, taskId, listEl) {
         console.error('Skipping undecryptable comment', err);
       }
     }
-  });
+  }, err => console.error('Comments listener error', err));
 }
 
 function startRealtimeNotes(caseId) {
