@@ -4,7 +4,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
 import {
   getFirestore, collection, addDoc, onSnapshot,
-  deleteDoc, updateDoc, doc, query, orderBy
+  deleteDoc, updateDoc, doc, query, orderBy, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
 import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 import { deriveKey, setKey, encrypt, decrypt } from './crypto.js';
@@ -25,32 +25,12 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// --- DOM + crypto helpers
-
+// --- DOM + state
 let noteForm, noteInput, notesList;
 let taskForm, taskInput, taskStatus, tasksList;
-let key, username, caseId;
+let username, caseId;
 
-async function deriveKey(passphrase) {
-  const enc = new TextEncoder();
-  const salt = enc.encode('shared-salt'); // TODO: production: use a random per-space salt
-
-  const baseKey = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-    baseKey,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt']
-  );
-}
-
-function bufToB64(buf) { return btoa(String.fromCharCode(...new Uint8Array(buf))); }
-function b64ToBuf(b64) { return Uint8Array.from(atob(b64), c => c.charCodeAt(0)); }
-
-
-
-// --- Firestore-backed UI
+// --- Realtime views
 function startRealtimeNotes() {
   const q = query(collection(db, 'cases', caseId, 'notes'), orderBy('createdAt', 'desc'));
   onSnapshot(q, async (snap) => {
@@ -61,6 +41,7 @@ function startRealtimeNotes() {
         const text = await decrypt(cipher, iv);
         const li = document.createElement('li');
         li.textContent = noteUser ? `${noteUser}: ${text}` : text;
+
         const edit = document.createElement('button');
         edit.textContent = 'Edit';
         edit.addEventListener('click', async () => {
@@ -70,16 +51,20 @@ function startRealtimeNotes() {
             const trimmed = newText.trim();
             if (!trimmed) return;
             const { cipher: newCipher, iv: newIv } = await encrypt(trimmed);
-            await updateDoc(doc(db, 'cases', caseId, 'notes', docSnap.id), { cipher: newCipher, iv: newIv });
+            await updateDoc(doc(db, 'cases', caseId, 'notes', docSnap.id), {
+              cipher: newCipher, iv: newIv
+            });
           } catch (err) {
             console.error('Failed to edit note', err);
           }
         });
+
         const del = document.createElement('button');
         del.textContent = 'Delete';
         del.addEventListener('click', async () => {
           await deleteDoc(doc(db, 'cases', caseId, 'notes', docSnap.id));
         });
+
         li.appendChild(edit);
         li.appendChild(del);
         notesList.appendChild(li);
@@ -100,17 +85,20 @@ function startRealtimeTasks() {
         const text = await decrypt(cipher, iv);
         const li = document.createElement('li');
         li.textContent = `${taskUser ? taskUser + ': ' : ''}${text} [${status}]`;
+
         const toggle = document.createElement('button');
         toggle.textContent = status === 'done' ? 'Reopen' : 'Complete';
         toggle.addEventListener('click', async () => {
           const newStatus = status === 'done' ? 'open' : 'done';
           await updateDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id), { status: newStatus });
         });
+
         const del = document.createElement('button');
         del.textContent = 'Delete';
         del.addEventListener('click', async () => {
           await deleteDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id));
         });
+
         li.appendChild(toggle);
         li.appendChild(del);
         tasksList.appendChild(li);
@@ -121,13 +109,18 @@ function startRealtimeTasks() {
   });
 }
 
+// --- Form bindings
 function bindNoteForm() {
   noteForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = noteInput.value.trim();
     if (!text) return;
     const encrypted = await encrypt(text);
-    await addDoc(collection(db, 'cases', caseId, 'notes'), { ...encrypted, username });
+    await addDoc(collection(db, 'cases', caseId, 'notes'), {
+      ...encrypted,
+      username,
+      createdAt: serverTimestamp()
+    });
     noteInput.value = '';
   });
 }
@@ -137,14 +130,20 @@ function bindTaskForm() {
     e.preventDefault();
     const text = taskInput.value.trim();
     if (!text) return;
-    const status = taskStatus.value;
+    const status = taskStatus.value || 'open';
     const encrypted = await encrypt(text);
-    await addDoc(collection(db, 'cases', caseId, 'tasks'), { ...encrypted, status, username });
+    await addDoc(collection(db, 'cases', caseId, 'tasks'), {
+      ...encrypted,
+      status,
+      username,
+      createdAt: serverTimestamp()
+    });
     taskInput.value = '';
     taskStatus.value = 'open';
   });
 }
 
+// --- Bootstrap
 window.addEventListener('DOMContentLoaded', async () => {
   noteForm = document.getElementById('note-form');
   noteInput = document.getElementById('note-input');
@@ -155,7 +154,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   tasksList = document.getElementById('tasks-list');
 
   try {
-    await signInAnonymously(auth); // gives a uid for security rules
+    await signInAnonymously(auth);
   } catch (err) {
     console.error('Failed to sign in anonymously', err);
     return;
@@ -169,16 +168,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const derived = await deriveKey(pass);
   setKey(derived);
 
-  const caseTitle = (prompt('Enter case title') || '').trim();
-  if (!caseTitle) return;
-  const caseRef = await addDoc(collection(db, 'cases'), {
-    title: caseTitle,
-    ownerUid: auth.currentUser.uid,
-    createdAt: serverTimestamp(),
-  });
-  caseId = caseRef.id;
-
-
+  // Create a new case (or you could select an existing one)
   const caseTitle = (prompt('Enter case title') || '').trim();
   if (!caseTitle) return;
   const caseRef = await addDoc(collection(db, 'cases'), {
@@ -193,5 +183,3 @@ window.addEventListener('DOMContentLoaded', async () => {
   startRealtimeNotes();
   startRealtimeTasks();
 });
-
-
