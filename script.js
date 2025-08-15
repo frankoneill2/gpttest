@@ -4,7 +4,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
 import {
   getFirestore, collection, addDoc, onSnapshot,
-  deleteDoc, doc, query, orderBy, serverTimestamp
+  deleteDoc, updateDoc, doc, query, orderBy, serverTimestamp
 } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
 import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 
@@ -75,11 +75,26 @@ function startRealtimeNotes() {
         const text = await decrypt(cipher, iv);
         const li = document.createElement('li');
         li.textContent = text;
+        const edit = document.createElement('button');
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', async () => {
+          try {
+            const newText = prompt('Edit note', text);
+            if (newText === null) return;
+            const trimmed = newText.trim();
+            if (!trimmed) return;
+            const { cipher: newCipher, iv: newIv } = await encrypt(trimmed);
+            await updateDoc(doc(db, 'notes', docSnap.id), { cipher: newCipher, iv: newIv });
+          } catch (err) {
+            console.error('Failed to edit note', err);
+          }
+        });
         const del = document.createElement('button');
         del.textContent = 'Delete';
         del.addEventListener('click', async () => {
           await deleteDoc(doc(db, 'notes', docSnap.id));
         });
+        li.appendChild(edit);
         li.appendChild(del);
         list.appendChild(li);
       } catch (err) {
