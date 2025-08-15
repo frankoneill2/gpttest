@@ -1,8 +1,267 @@
-body { font-family: sans-serif; margin: 2rem; }
-form { margin: 1rem 0; }
-textarea { width: 100%; height: 4rem; }
-#case-list li { cursor: pointer; margin-bottom: .5rem; }
-#task-list li { margin-bottom: .5rem; }
-#task-list select { margin-left: .5rem; }
-#task-list button { margin-left: .5rem; }
-.comments { margin-left: 1.5rem; font-size: 0.9em; }
+:root {
+  --bg: #f5f7fa;
+  --bg2: #e0e7ff;
+  --card-bg: #ffffff;
+  --primary: #2563eb;
+  --primary-hover: #1e40af;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --radius: 0.5rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: linear-gradient(var(--bg), var(--bg2));
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.app {
+  padding: 1rem;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  margin: 0 0 1rem;
+  color: var(--primary);
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-top: 4px solid var(--primary);
+}
+
+.stack > * + * {
+  margin-top: 0.75rem;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+textarea {
+  min-height: 4rem;
+  resize: vertical;
+}
+
+button {
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+button.primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+button.primary:hover {
+  background: var(--primary-hover);
+}
+
+.back-btn {
+  background: none;
+  color: var(--muted);
+  padding: 0;
+  margin-bottom: 1rem;
+}
+
+#case-list li,
+#task-list li,
+#notes-list li {
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius);
+  margin-bottom: 0.5rem;
+  background: #fff;
+}
+
+#case-list li {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+#case-list li:hover {
+  background: #f3f4f6;
+}
+
+#task-form,
+#note-form {
+  margin-top: 1rem;
+}
+
+#task-form select {
+  margin-top: 0.75rem;
+}
+
+#notes-list li button {
+  margin-left: 0.5rem;
+  background: none;
+  color: var(--primary);
+}
+
+#task-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-title {
+  font-weight: 500;
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.task-actions select {
+  flex: 1;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--primary);
+  padding: 0.25rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: #e0e7ff;
+}
+
+.delete-btn {
+  color: #ef4444;
+}
+
+.add-comment-btn {
+  color: #10b981;
+}
+
+.status-select {
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status-select[data-status="open"] {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status-select[data-status="in progress"] {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-select[data-status="complete"] {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.task-item[data-status="complete"] span {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.task-item[data-status="open"] {
+  border-left: 4px solid #f87171;
+  background: #fee2e2;
+}
+
+.task-item[data-status="in progress"] {
+  border-left: 4px solid #fbbf24;
+  background: #fef3c7;
+}
+
+.task-item[data-status="complete"] {
+  border-left: 4px solid #34d399;
+  background: #dcfce7;
+}
+
+.comment-section {
+  margin-left: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.comments li {
+  border: none;
+  padding: 0.25rem 0;
+}
+
+.comment-form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.comment-form input {
+  flex: 1;
+}
+
+@media (min-width: 600px) {
+  #case-form,
+  #task-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  #case-form input,
+  #task-form input {
+    flex: 1;
+  }
+
+  #task-form select {
+    flex: 0 0 40%;
+    margin-top: 0;
+  }
+
+  #case-form button,
+  #task-form button {
+    flex: 0 0 auto;
+  }
+}
+
