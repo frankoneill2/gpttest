@@ -144,7 +144,7 @@ function startRealtimeTasks(caseId) {
           select.dataset.status = select.value;
           li.dataset.status = select.value;
         });
-
+        
         actions.appendChild(select);
 
 
@@ -159,21 +159,28 @@ function startRealtimeTasks(caseId) {
         actions.appendChild(del);
 
         const toggle = document.createElement('button');
+        toggle.type = 'button';
+
         toggle.className = 'icon-btn comment-toggle';
         toggle.textContent = '💬';
         toggle.setAttribute('aria-label', 'Show comments');
         actions.appendChild(toggle);
 
         // comments section
+        const commentSection = document.createElement('div');
+        commentSection.className = 'comment-section';
+        commentSection.hidden = true;
+
         const commentsList = document.createElement('ul');
         commentsList.className = 'comments';
-        commentsList.hidden = true;
-        li.appendChild(commentsList);
+
+        commentSection.appendChild(commentsList);
+
         startRealtimeComments(caseId, docSnap.id, commentsList);
 
         const commentForm = document.createElement('form');
         commentForm.className = 'comment-form';
-        commentForm.hidden = true;
+
         const commentInput = document.createElement('input');
         commentInput.placeholder = 'Add comment';
         commentForm.appendChild(commentInput);
@@ -193,7 +200,15 @@ function startRealtimeTasks(caseId) {
           });
           commentInput.value = '';
         });
-        li.appendChild(commentForm);
+        commentSection.appendChild(commentForm);
+        li.appendChild(commentSection);
+
+        toggle.addEventListener('click', () => {
+          const hidden = commentSection.hidden;
+          commentSection.hidden = !hidden;
+          toggle.textContent = hidden ? '✖' : '💬';
+          toggle.setAttribute('aria-label', hidden ? 'Hide comments' : 'Show comments');
+        });
 
         toggle.addEventListener('click', () => {
           const hidden = commentsList.hidden;

@@ -1,7 +1,6 @@
 :root {
   --bg: #f5f7fa;
   --bg2: #e0e7ff;
-
   --card-bg: #ffffff;
   --primary: #2563eb;
   --primary-hover: #1e40af;
@@ -36,7 +35,6 @@ h3 {
   font-weight: 600;
   margin: 0 0 1rem;
   color: var(--primary);
-
 }
 
 ul {
@@ -154,7 +152,6 @@ button.primary:hover {
   gap: 0.5rem;
 }
 
-
 .task-actions select {
   flex: 1;
 }
@@ -179,7 +176,6 @@ button.primary:hover {
 .add-comment-btn {
   color: #10b981;
 }
-
 
 .status-select {
   border: none;
@@ -227,7 +223,8 @@ button.primary:hover {
 
 }
 
-.comments {
+.comment-section {
+
   margin-left: 1.5rem;
 }
 
@@ -239,7 +236,7 @@ button.primary:hover {
 .comment-form {
   display: flex;
   gap: 0.5rem;
-  margin-left: 1.5rem;
+
 }
 
 .comment-form input {
