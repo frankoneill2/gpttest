@@ -133,7 +133,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   const pass = prompt('Enter shared passphrase');
   if (!pass) return;
-  key = await deriveKey(pass);
+  try {
+    key = await deriveKey(pass);
+  } catch (err) {
+    console.error('Failed to derive key', err);
+    return;
+  }
 
   startRealtimeNotes();
 });
