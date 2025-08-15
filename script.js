@@ -63,10 +63,9 @@ async function decrypt(cipher, iv) {
 }
 
 // --- Firestore-backed UI
-function startRealtimeNotes() {
+function startRealtimeNotes(caseId) {
 
-
-  const q = query(collection(db, 'notes'), orderBy('createdAt', 'desc'));
+  const q = query(collection(db, 'cases', caseId, 'notes'), orderBy('createdAt', 'desc'));
   onSnapshot(q, async (snap) => {
     list.innerHTML = '';
     for (const docSnap of snap.docs) {
@@ -84,7 +83,7 @@ function startRealtimeNotes() {
             const trimmed = newText.trim();
             if (!trimmed) return;
             const { cipher: newCipher, iv: newIv } = await encrypt(trimmed);
-            await updateDoc(doc(db, 'notes', docSnap.id), { cipher: newCipher, iv: newIv });
+            await updateDoc(doc(db, 'cases', caseId, 'notes', docSnap.id), { cipher: newCipher, iv: newIv });
           } catch (err) {
             console.error('Failed to edit note', err);
           }
@@ -92,7 +91,7 @@ function startRealtimeNotes() {
         const del = document.createElement('button');
         del.textContent = 'Delete';
         del.addEventListener('click', async () => {
-          await deleteDoc(doc(db, 'notes', docSnap.id));
+          await deleteDoc(doc(db, 'cases', caseId, 'notes', docSnap.id));
         });
         li.appendChild(edit);
         li.appendChild(del);
@@ -104,13 +103,13 @@ function startRealtimeNotes() {
   });
 }
 
-function bindForm() {
+function bindForm(caseId) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
     const encrypted = await encrypt(text);
-    await addDoc(collection(db, 'notes'), { ...encrypted, username });
+    await addDoc(collection(db, 'cases', caseId, 'notes'), { ...encrypted, username });
     input.value = '';
   });
 }
@@ -119,7 +118,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   form = document.getElementById('note-form');
   input = document.getElementById('note-input');
   list = document.getElementById('notes-list');
-  bindForm();
   try {
     await signInAnonymously(auth); // gives a uid for security rules
   } catch (err) {
@@ -134,8 +132,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   const pass = prompt('Enter shared passphrase');
   if (!pass) return;
   key = await deriveKey(pass);
-
-  startRealtimeNotes();
+  const caseId = (prompt('Enter case ID') || '').trim();
+  if (!caseId) return;
+  bindForm(caseId);
+  startRealtimeNotes(caseId);
 });
 
 
