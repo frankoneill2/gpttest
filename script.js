@@ -104,7 +104,6 @@ function showCaseList() {
   currentCaseId = null;
   if (unsubTasks) { unsubTasks(); unsubTasks = null; }
   if (unsubNotes) { unsubNotes(); unsubNotes = null; }
-  if (unsubUsers) { unsubUsers(); unsubUsers = null; }
 }
 
 async function openCase(id, title, source = 'list') {
@@ -118,6 +117,72 @@ async function openCase(id, title, source = 'list') {
   startRealtimeNotes(id);
   // Show tasks tab by default on open
   showTab('tasks');
+}
+
+
+// Top-level tabs between Cases and My Tasks
+function showMainTab(which) {
+  const mainTabCases = document.getElementById('tab-cases');
+  const mainTabMy = document.getElementById('tab-my');
+  const onCases = which === 'cases';
+  // Toggle active classes
+  if (mainTabCases && mainTabMy) {
+    mainTabCases.classList.toggle('active', onCases);
+    mainTabCases.setAttribute('aria-selected', String(onCases));
+    mainTabMy.classList.toggle('active', !onCases);
+    mainTabMy.setAttribute('aria-selected', String(!onCases));
+  }
+  if (onCases) {
+    // Show cases list or detail, hide user detail
+    userDetailEl.hidden = true;
+    if (currentCaseId) {
+      caseDetailEl.hidden = false;
+      if (caseListSection) caseListSection.style.display = 'none';
+    } else {
+      showCaseList();
+    }
+  } else {
+    // Show current user's tasks
+    openUser(username);
+  }
+}
+
+
+// User select modal using live users list
+function showUserSelectModal() {
+  return new Promise(async (resolve) => {
+    const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
+    const modal = document.createElement('div'); modal.className = 'modal'; overlay.appendChild(modal);
+    const title = document.createElement('h3'); title.textContent = 'Select your user'; modal.appendChild(title);
+    const row = document.createElement('div'); row.className = 'row'; modal.appendChild(row);
+    const select = document.createElement('select'); select.style.height = '48px'; select.style.borderRadius = '12px'; select.style.border = '1px solid #e5e7eb'; select.style.padding = '0 12px'; row.appendChild(select);
+    const actions = document.createElement('div'); actions.className = 'actions'; modal.appendChild(actions);
+    const cancel = document.createElement('button'); cancel.className = 'btn'; cancel.textContent = 'Cancel'; actions.appendChild(cancel);
+    const ok = document.createElement('button'); ok.className = 'btn primary'; ok.textContent = 'Continue'; actions.appendChild(ok);
+    document.body.appendChild(overlay);
+    let unsub = null;
+    const fill = (names) => {
+      const prev = select.value;
+      select.innerHTML = '';
+      for (const n of names) { const opt=document.createElement('option'); opt.value=n; opt.textContent=n; select.appendChild(opt);} 
+      if (prev && names.includes(prev)) select.value = prev;
+    };
+    try {
+      const qUsers = query(collection(db, 'users'), orderBy('username'));
+      unsub = onSnapshot(qUsers, (snap) => {
+        const names = snap.docs.map(d => (d.data().username || '').trim()).filter(Boolean);
+        fill(names);
+      });
+    } catch (e) {
+      const snap = await getDocs(query(collection(db, 'users'), orderBy('username')));
+      fill(snap.docs.map(d => (d.data().username || '').trim()).filter(Boolean));
+    }
+    const cleanup = () => { if (unsub) unsub(); overlay.remove(); };
+    cancel.addEventListener('click', () => { cleanup(); resolve(''); });
+    ok.addEventListener('click', () => { const val = select.value || ''; cleanup(); resolve(val); });
+    select.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ok.click(); }});
+    select.focus();
+  });
 }
 
 // --- Firestore listeners
@@ -820,6 +885,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   notesListEl = document.getElementById('notes-list');
   tabTasksBtn = document.getElementById('tab-tasks');
   tabNotesBtn = document.getElementById('tab-notes');
+  // Main tabs
+  const mainTabCases = document.getElementById('tab-cases');
+  const mainTabMy = document.getElementById('tab-my');
   userDetailEl = document.getElementById('user-detail');
   userTitleEl = document.getElementById('user-title');
   userTaskListEl = document.getElementById('user-task-list');
@@ -834,6 +902,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   bindTaskForm();
   bindNoteForm();
   bindTabs();
+  // Main tab bindings
+  if (mainTabCases && mainTabMy) {
+    mainTabCases.addEventListener('click', () => showMainTab('cases'));
+    mainTabMy.addEventListener('click', () => showMainTab('my'));
+  }
   backBtn.addEventListener('click', () => {
     if (backTarget === 'user' && userDetailEl) {
       // Leave case view, return to user page
@@ -929,14 +1002,18 @@ window.addEventListener('DOMContentLoaded', async () => {
     console.error('Failed to sign in anonymously', err);
     return;
   }
-  username = (prompt('Enter username') || '').trim();
-  if (!username) return;
+  // First, passphrase
   const pass = prompt('Enter shared passphrase');
   if (!pass) return;
   key = await deriveKey(pass);
+  // Then pick a user from dropdown modal fed by live users list
+  username = await showUserSelectModal();
+  if (!username) return;
   startRealtimeCases();
   // Start manual users list
   startRealtimeUsers();
+  // Default tab
+  showMainTab('cases');
 });
 
 // Toast utility
@@ -1011,6 +1088,8 @@ function startRealtimeUsers() {
       nameBtn.textContent = name;
       nameBtn.addEventListener('click', () => {
         setOpen(false);
+        // Switch current user context and open their tasks
+        username = name;
         openUser(name);
       });
 
@@ -1031,7 +1110,7 @@ function startRealtimeUsers() {
       del.setAttribute('aria-label', `Delete ${name}`);
       del.addEventListener('click', async (e) => {
         e.stopPropagation();
-        if (!confirm(`Delete user \'${name}\'?`)) return;
+        if (!confirm(`Delete user '${name}'?`)) return;
         await deleteDoc(doc(db, 'users', d.id));
       });
 
@@ -1044,12 +1123,25 @@ function startRealtimeUsers() {
     populateComposerAssignees();
   });
 }
+
 function openUser(name) {
   currentUserPageName = name;
-  userTitleEl.textContent = `${name}'s tasks`;
+  // Title with inline change link
+  userTitleEl.innerHTML = `${name}'s tasks <button id="change-user-link" class="change-user-link" type="button">(Change user)</button>`;
   if (caseListSection) caseListSection.style.display = 'none';
   caseDetailEl.hidden = true;
   userDetailEl.hidden = false;
+  // Bind change user link
+  const changeBtn = document.getElementById('change-user-link');
+  if (changeBtn) {
+    changeBtn.addEventListener('click', async () => {
+      const next = await showUserSelectModal();
+      if (next && next !== username) {
+        username = next;
+        openUser(next);
+      }
+    }, { once: true });
+  }
   // Restore last-used filters (multi-status, priority, sort) for this user
   const saved = userFilterByName.get(name);
   if (saved && typeof saved === 'object') {

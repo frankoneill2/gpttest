@@ -28,6 +28,10 @@
     </div>
   </header>
   <main class="app">
+    <div id="main-tabs" class="tabs">
+      <button id="tab-cases" class="tab active" role="tab" aria-selected="true" aria-controls="case-list-section">Cases</button>
+      <button id="tab-my" class="tab" role="tab" aria-selected="false" aria-controls="user-detail">My Tasks</button>
+    </div>
     <section id="case-list-section" class="card">
       <h1><span class="emoji" aria-hidden="true">📁</span> Cases</h1>
       <ul id="case-list"></ul>
@@ -86,7 +90,6 @@
       <button id="user-back-btn" class="back-btn" aria-label="Back">← Back</button>
       <h2 id="user-title" class="case-heading"></h2>
       <div id="user-toolbar-root" style="margin-bottom: 8px"></div>
-      </div>
       <ul id="user-task-list"></ul>
     </section>
   </main>
