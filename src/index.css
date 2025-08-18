@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Utility to align with existing app typography */
+body { @apply text-gray-900; }
+

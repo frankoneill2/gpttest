@@ -42,6 +42,13 @@ let unsubNotes = null;
 let unsubUsers = null;
 let usersCache = [];
 let unsubUserTasks = [];
+// Toolbar filters for case tasks
+let toolbarStatuses = new Set(['open','in progress','complete']);
+let toolbarPriority = 'all';
+let toolbarSort = 'none';
+let toolbarSearch = '';
+let currentCaseTasks = [];
+let currentTaskOrder = null;
 // User page state for rendering/filtering
 let userPerCase = new Map(); // caseId -> [{ taskId, text, status }]
 let userCaseTitles = new Map(); // caseId -> title
@@ -50,6 +57,7 @@ let userFilterEl; // legacy single-select (no longer used)
 let currentUserStatusSet = new Set(['open', 'in progress', 'complete']);
 let currentUserPriorityFilter = 'all';
 let currentUserSort = 'none';
+let currentUserSearch = '';
 let userStatusEls = [];
 let userPriorityFilterEl, userSortEl;
 let userFilterByName = new Map(); // username -> { statuses: [...], priority: 'all'|'high'|'medium'|'low', sort: 'none'|'pri-asc'|'pri-desc' }
@@ -210,6 +218,12 @@ function startRealtimeTasks(caseId) {
     // Sort current items by the established in-session order
     const idx = new Map(taskOrder.map((id, i) => [id, i]));
     items.sort((a, b) => (idx.get(a.docSnap.id) ?? 999999) - (idx.get(b.docSnap.id) ?? 999999));
+
+    // Feed toolbar-based renderer
+    currentTaskOrder = taskOrder.slice();
+    currentCaseTasks = items.map(({ docSnap, data, text, status, createdAt }) => ({ caseId, id: docSnap.id, text, status, data, createdAt }));
+    renderCaseTasks();
+    return;
 
     for (const item of items) {
       const { docSnap, text, status, data } = item;
@@ -554,6 +568,161 @@ function showTab(which) {
   tabTasksBtn.setAttribute('aria-selected', String(isTasks));
   tabNotesBtn.setAttribute('aria-selected', String(!isTasks));
 }
+
+// Apply toolbar filters to current case tasks and render
+function renderCaseTasks() {
+  if (!taskListEl) return;
+  const priVal = (p) => (p === 'high' ? 3 : p === 'medium' ? 2 : p === 'low' ? 1 : 0);
+  let visible = currentCaseTasks.filter(it => {
+    const pri = (it.data && it.data.priority) || '';
+    const matchStatus = (!toolbarStatuses.size || toolbarStatuses.has(it.status));
+    const matchPriority = (toolbarPriority === 'all' || pri === toolbarPriority);
+    const matchSearch = (!toolbarSearch || it.text.toLowerCase().includes(toolbarSearch.toLowerCase()));
+    return matchStatus && matchPriority && matchSearch;
+  });
+  let ordered;
+  if (toolbarSort === 'pri-asc' || toolbarSort === 'pri-desc') {
+    ordered = [...visible].sort((a,b) => {
+      const pa = (a.data && a.data.priority) || '';
+      const pb = (b.data && b.data.priority) || '';
+      return toolbarSort === 'pri-asc' ? (priVal(pa) - priVal(pb)) : (priVal(pb) - priVal(pa));
+    });
+  } else {
+    const idx = new Map((currentTaskOrder || []).map((id,i)=>[id,i]));
+    ordered = [...visible].sort((a,b)=>(idx.get(a.id)??999999)-(idx.get(b.id)??999999));
+  }
+  // Re-render list with ordered
+  taskListEl.innerHTML = '';
+  for (const item of ordered) {
+    // Reuse existing builder by simulating a single-item snapshot render
+    // Build the same DOM fragment used in startRealtimeTasks for each item
+    // Simplest: call a small builder
+    taskListEl.appendChild(buildTaskListItem(item));
+  }
+}
+
+function buildTaskListItem(item) {
+  const { caseId, id: taskId, text, status, data } = item;
+  const li = document.createElement('li');
+  li.className = 'task-item';
+  li.dataset.status = status;
+  const titleSpan = document.createElement('span');
+  titleSpan.className = 'task-title';
+  titleSpan.textContent = text;
+  const taskMain = document.createElement('div');
+  taskMain.className = 'task-main';
+  const statusBtn = document.createElement('button');
+  statusBtn.type = 'button';
+  statusBtn.className = 'icon-btn task-status-btn';
+  const statusIcon = (s) => s === 'complete' ? '☑' : (s === 'in progress' ? '◐' : '☐');
+  const statusLabel = (s) => `Task status: ${s}`;
+  statusBtn.textContent = statusIcon(status);
+  statusBtn.setAttribute('aria-label', statusLabel(status));
+  statusBtn.addEventListener('click', async () => {
+    const order = ['open', 'in progress', 'complete'];
+    const idx = order.indexOf(li.dataset.status || 'open');
+    const next = order[(idx + 1) % order.length];
+    const { cipher, iv } = await encryptText(next);
+    await updateDoc(doc(db, 'cases', caseId, 'tasks', taskId), { statusCipher: cipher, statusIv: iv });
+    li.dataset.status = next;
+    statusBtn.textContent = statusIcon(next);
+    statusBtn.setAttribute('aria-label', statusLabel(next));
+  });
+  taskMain.appendChild(statusBtn);
+  taskMain.appendChild(titleSpan);
+  li.appendChild(taskMain);
+  // Chips: priority/assignee
+  const chips = document.createElement('div');
+  chips.className = 'chips';
+  if (data.priority) {
+    const pri = document.createElement('span');
+    const val = data.priority;
+    pri.className = 'chip ' + (val === 'high' ? 'pri-high' : val === 'medium' ? 'pri-medium' : 'pri-low');
+    pri.textContent = `Priority: ${val}`;
+    chips.appendChild(pri);
+  }
+  if (data.assignee) {
+    const as = document.createElement('span');
+    as.className = 'chip';
+    const av = document.createElement('span');
+    av.className = 'avatar';
+    const initials = data.assignee.split(/\s+/).map(s=>s[0]).join('').slice(0,2).toUpperCase();
+    av.textContent = initials || 'U';
+    const name = document.createElement('span');
+    name.textContent = data.assignee;
+    as.appendChild(av); as.appendChild(name);
+    chips.appendChild(as);
+  }
+  if (chips.children.length) li.appendChild(chips);
+  // Actions and comments (reuse existing case-page creation patterns)
+  const actions = document.createElement('div');
+  actions.className = 'task-actions';
+  li.appendChild(actions);
+  const actionsWrap = document.createElement('div');
+  actionsWrap.className = 'actions-menu';
+  const menuBtn = document.createElement('button');
+  menuBtn.className = 'icon-btn';
+  menuBtn.setAttribute('aria-label', 'More actions');
+  menuBtn.textContent = '⋯';
+  actionsWrap.appendChild(menuBtn);
+  const panel = document.createElement('div');
+  panel.className = 'menu-panel';
+  panel.hidden = true;
+  const addItem = (label, onClick, opts = {}) => {
+    const { danger = false, autoClose = true } = opts;
+    const b = document.createElement('button');
+    b.className = 'menu-item' + (danger ? ' delete-btn' : '');
+    b.textContent = label;
+    b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); if (autoClose) panel.hidden = true; });
+    panel.appendChild(b);
+  };
+  addItem('Edit', async () => {
+    const current = titleSpan.textContent;
+    const next = (prompt('Edit task', current) || '').trim();
+    if (!next || next === current) return;
+    const { cipher: textCipher, iv: textIv } = await encryptText(next);
+    await updateDoc(doc(db, 'cases', caseId, 'tasks', taskId), { textCipher, textIv });
+    titleSpan.textContent = next;
+    showToast('Task updated');
+  });
+  addItem('Assign', () => {
+    const sel = document.createElement('select');
+    sel.className = 'assignee-select';
+    const none = document.createElement('option'); none.value=''; none.textContent='Unassigned'; sel.appendChild(none);
+    for (const u of usersCache) { const opt=document.createElement('option'); opt.value=u.username; opt.textContent=u.username; sel.appendChild(opt);} 
+    sel.value = (data.assignee || '');
+    sel.addEventListener('change', async () => {
+      await updateDoc(doc(db, 'cases', caseId, 'tasks', taskId), { assignee: sel.value || null });
+      sel.remove(); panel.hidden = true; showToast('Assignee updated');
+    }, { once: true });
+    panel.appendChild(sel);
+    sel.focus();
+  }, { autoClose: false });
+  addItem('Delete', async () => {
+    if (!confirm('Delete this task?')) return;
+    await deleteDoc(doc(db, 'cases', caseId, 'tasks', taskId));
+  }, { danger: true, autoClose: true });
+  actionsWrap.appendChild(panel);
+  actions.appendChild(actionsWrap);
+  const toggleMenu = (open) => { panel.hidden = !open; };
+  menuBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(panel.hidden); });
+  document.addEventListener('click', (e) => { if (panel.hidden) return; const ae=document.activeElement; const inside=panel.contains(e.target)|| (ae && panel.contains(ae)); if (!inside && e.target!==menuBtn) toggleMenu(false); });
+  const toggle = document.createElement('button');
+  toggle.type = 'button'; toggle.className = 'icon-btn comment-toggle'; toggle.setAttribute('aria-label','Show comments'); actions.appendChild(toggle);
+  const commentCountEl = document.createElement('span'); commentCountEl.className = 'badge comment-count'; actions.appendChild(commentCountEl);
+  const commentSection = document.createElement('div'); commentSection.className = 'comment-section'; commentSection.hidden=false;
+  const commentsList = document.createElement('ul'); commentsList.className='comments'; commentSection.appendChild(commentsList);
+  const commentForm = document.createElement('form'); commentForm.className='comment-form';
+  const commentInput = document.createElement('input'); commentInput.placeholder='Add comment'; commentForm.appendChild(commentInput);
+  const commentBtn = document.createElement('button'); commentBtn.className='icon-btn add-comment-btn'; commentBtn.type='submit'; commentBtn.textContent='➕'; commentBtn.setAttribute('aria-label','Add comment'); commentForm.appendChild(commentBtn);
+  let commentsLoaded = true; let commentCount = 0; const updateToggle=()=>{ toggle.textContent = commentSection.hidden ? '💬' : '✖'; commentCountEl.textContent = commentCount>0? String(commentCount):''; toggle.setAttribute('aria-label', commentSection.hidden?'Show comments':'Hide comments'); };
+  updateToggle(); startRealtimeComments(caseId, taskId, commentsList, (n)=>{ commentCount=n; updateToggle(); });
+  commentForm.addEventListener('submit', async (e)=>{ e.preventDefault(); const t=commentInput.value.trim(); if(!t) return; const tempLi=document.createElement('li'); tempLi.className='optimistic'; const span=document.createElement('span'); span.textContent = username ? `${username}: ${t}` : t; tempLi.appendChild(span); commentsList.appendChild(tempLi); commentInput.value=''; commentSection.hidden=false; updateToggle(); try{ const {cipher, iv}= await encryptText(t); await addDoc(collection(db,'cases',caseId,'tasks',taskId,'comments'),{cipher,iv,username,createdAt:serverTimestamp()}); if(!commentsLoaded){ startRealtimeComments(caseId,taskId,commentsList,(n)=>{commentCount=n; updateToggle();}); commentsLoaded=true; } } catch(err){ tempLi.classList.add('failed'); showToast('Failed to add comment'); } });
+  commentSection.appendChild(commentForm);
+  toggle.addEventListener('click',()=>{ const h=commentSection.hidden; commentSection.hidden=!h; updateToggle(); if(h && !commentsLoaded){ startRealtimeComments(caseId,taskId,commentsList,(n)=>{ commentCount=n; updateToggle();}); commentsLoaded=true; } });
+  li.appendChild(commentSection);
+  return li;
+}
 function bindCaseForm() {
   caseForm.addEventListener('submit', async e => {
     e.preventDefault();
@@ -697,32 +866,62 @@ window.addEventListener('DOMContentLoaded', async () => {
     brandHome.addEventListener('click', () => {
       showCaseList();
     });
-  }
-  // Status multi-select checkboxes
-  if (userStatusEls.length) {
-    userStatusEls.forEach(cb => {
-      cb.addEventListener('change', () => {
-        const vals = userStatusEls.filter(x => x.checked).map(x => x.value);
-        currentUserStatusSet = new Set(vals.length ? vals : []);
-        saveUserFilterState();
-        renderUserTasks();
-      });
-    });
-  }
-  if (userPriorityFilterEl) {
-    userPriorityFilterEl.addEventListener('change', () => {
-      currentUserPriorityFilter = userPriorityFilterEl.value;
-      saveUserFilterState();
-      renderUserTasks();
-    });
-  }
-  if (userSortEl) {
-    userSortEl.addEventListener('change', () => {
-      currentUserSort = userSortEl.value;
-      saveUserFilterState();
-      renderUserTasks();
-    });
-  }
+  
+  // React toolbar events -> filter/sort case tasks
+  document.addEventListener('taskToolbar:status', (e) => {
+    const detail = (e && e.detail) || {};
+    toolbarStatuses = new Set((detail.statuses || []).map(String));
+    renderCaseTasks();
+  });
+  document.addEventListener('taskToolbar:priority', (e) => {
+    toolbarPriority = (e && e.detail && e.detail.priority) || 'all';
+    renderCaseTasks();
+  });
+  document.addEventListener('taskToolbar:sort', (e) => {
+    toolbarSort = (e && e.detail && e.detail.sort) || 'none';
+    renderCaseTasks();
+  });
+  document.addEventListener('taskToolbar:search', (e) => {
+    toolbarSearch = (e && e.detail && e.detail.query) || '';
+    renderCaseTasks();
+  });
+  document.addEventListener('taskToolbar:clear', () => {
+    toolbarStatuses = new Set(['open','in progress','complete']);
+    toolbarPriority = 'all';
+    toolbarSort = 'none';
+    toolbarSearch = '';
+    renderCaseTasks();
+  });
+}
+  // React User toolbar events
+  document.addEventListener('userToolbar:status', (e) => {
+    const detail = (e && e.detail) || {};
+    currentUserStatusSet = new Set((detail.statuses || []).map(String));
+    saveUserFilterState();
+    renderUserTasks();
+  });
+  document.addEventListener('userToolbar:priority', (e) => {
+    currentUserPriorityFilter = (e && e.detail && e.detail.priority) || 'all';
+    saveUserFilterState();
+    renderUserTasks();
+  });
+  document.addEventListener('userToolbar:sort', (e) => {
+    currentUserSort = (e && e.detail && e.detail.sort) || 'none';
+    saveUserFilterState();
+    renderUserTasks();
+  });
+  document.addEventListener('userToolbar:search', (e) => {
+    currentUserSearch = (e && e.detail && e.detail.query) || '';
+    saveUserFilterState();
+    renderUserTasks();
+  });
+  document.addEventListener('userToolbar:clear', () => {
+    currentUserStatusSet = new Set(['open','in progress','complete']);
+    currentUserPriorityFilter = 'all';
+    currentUserSort = 'none';
+    saveUserFilterState();
+    renderUserTasks();
+  });
 
   try {
     await signInAnonymously(auth);
@@ -857,15 +1056,24 @@ function openUser(name) {
     currentUserStatusSet = new Set(saved.statuses || ['open','in progress','complete']);
     currentUserPriorityFilter = saved.priority || 'all';
     currentUserSort = saved.sort || 'none';
+    currentUserSearch = saved.search || '';
   } else {
     currentUserStatusSet = new Set(['open','in progress','complete']);
     currentUserPriorityFilter = 'all';
     currentUserSort = 'none';
+    currentUserSearch = '';
   }
   // Reflect in controls
   if (userStatusEls.length) userStatusEls.forEach(cb => cb.checked = currentUserStatusSet.has(cb.value));
   if (userPriorityFilterEl) userPriorityFilterEl.value = currentUserPriorityFilter;
   if (userSortEl) userSortEl.value = currentUserSort;
+  // Hydrate React toolbar
+  document.dispatchEvent(new CustomEvent('userToolbar:hydrate', { detail: {
+    statuses: Array.from(currentUserStatusSet),
+    priority: currentUserPriorityFilter,
+    sort: currentUserSort,
+    search: currentUserSearch,
+  }}));
   startRealtimeUserTasks(name);
 }
 
@@ -915,7 +1123,8 @@ function renderUserTasks() {
   const caseIds = Array.from(userPerCase.keys()).sort((a, b) => (userCaseTitles.get(a) || '').localeCompare(userCaseTitles.get(b) || ''));
   for (const caseId of caseIds) {
     let items = userPerCase.get(caseId) || [];
-    if (currentUserFilter !== 'all') items = items.filter(i => i.status === currentUserFilter);
+    if (currentUserStatusSet && currentUserStatusSet.size) items = items.filter(i => currentUserStatusSet.has(i.status));
+    if (currentUserPriorityFilter !== 'all') items = items.filter(i => (i.priority || '') === currentUserPriorityFilter);
     if (items.length === 0) continue;
     const title = userCaseTitles.get(caseId) || '(case)';
 

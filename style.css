@@ -171,8 +171,8 @@ button.primary:hover {
 
 /* Composer */
 #task-form.composer { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; border: 1px solid #e5e7eb; border-radius: 12px; padding: 8px; background: #fff; }
-#task-form.composer input { border: none; box-shadow: none; padding: 0.5rem 0.25rem; }
-#task-form.composer .primary { height: 44px; }
+#task-form.composer input { border: none; box-shadow: none; padding: 0.5rem 0.25rem; height: 48px; }
+#task-form.composer .primary { height: 48px; border-radius: 12px; padding: 0 14px; }
 .composer-opts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin: 8px 0 12px; }
 .composer-opts label { display: grid; gap: 4px; color: var(--muted); font-size: 0.9rem; }
 .composer-opts select { width: 100%; }

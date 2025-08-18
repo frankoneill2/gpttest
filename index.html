@@ -46,6 +46,7 @@
       </div>
 
       <section id="tasks" role="tabpanel" aria-labelledby="tab-tasks">
+        <div id="task-toolbar-root" style="margin-bottom: 8px"></div>
         <form id="task-form" class="composer" autocomplete="off">
           <button type="button" class="icon-btn" aria-hidden="true" tabindex="-1">+</button>
           <input id="task-input" placeholder="Add a task…" aria-label="Task description">
@@ -84,33 +85,14 @@
     <section id="user-detail" class="card" hidden>
       <button id="user-back-btn" class="back-btn" aria-label="Back">← Back</button>
       <h2 id="user-title" class="case-heading"></h2>
-      <div class="toolbar" id="user-toolbar">
-        <div class="filter-group" id="user-status-group" aria-label="Filter by status">
-          <span class="meta">Status:</span>
-          <label><input type="checkbox" class="user-status" value="open" checked> Open</label>
-          <label><input type="checkbox" class="user-status" value="in progress" checked> In progress</label>
-          <label><input type="checkbox" class="user-status" value="complete" checked> Complete</label>
-        </div>
-        <label>Priority
-          <select id="user-priority-filter" aria-label="Filter by priority">
-            <option value="all">All</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
-        </label>
-        <label>Sort
-          <select id="user-sort" aria-label="Sort tasks">
-            <option value="none">None</option>
-            <option value="pri-desc">Priority high → low</option>
-            <option value="pri-asc">Priority low → high</option>
-          </select>
-        </label>
+      <div id="user-toolbar-root" style="margin-bottom: 8px"></div>
       </div>
       <ul id="user-task-list"></ul>
     </section>
   </main>
   <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
   <script type="module" src="script.js"></script>
+  <!-- Vite React toolbar -->
+  <script type="module" src="/src/main.tsx"></script>
 </body>
 </html>
