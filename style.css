@@ -365,11 +365,19 @@ button.primary:hover {
     margin-top: 0;
   }
 
+  #case-form select {
+    flex: 0 0 40%;
+    margin-top: 0;
+  }
+
   #case-form button,
   #task-form button {
     flex: 0 0 auto;
   }
 }
+
+/* Location chip styling on case card */
+.chip.location { background: #e0f2fe; color: #075985; border-color: #bae6fd; cursor: pointer; }
 
 /* Empty state helpers */
 #case-list:empty::before {

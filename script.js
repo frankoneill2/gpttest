@@ -26,7 +26,7 @@ const auth = getAuth(app);
 
 // --- State and DOM refs
 let key, username;
-let caseListSection, caseListEl, caseForm, caseInput;
+let caseListSection, caseListEl, caseForm, caseInput, caseLocationSel;
 let caseDetailEl, caseTitleEl, backBtn;
 let taskForm, taskInput, taskListEl;
 let taskAssigneeEl, taskPriorityEl, composerOptsEl;
@@ -40,7 +40,9 @@ let currentUserPageName = null;
 let unsubTasks = null;
 let unsubNotes = null;
 let unsubUsers = null;
+let unsubLocations = null;
 let usersCache = [];
+let locationsCache = [];
 let unsubUserTasks = [];
 // Toolbar filters for case tasks
 let toolbarStatuses = new Set(['open','in progress','complete']);
@@ -190,54 +192,116 @@ function startRealtimeCases() {
   const q = query(collection(db, 'cases'), orderBy('createdAt', 'desc'));
   onSnapshot(q, async snap => {
     caseListEl.innerHTML = '';
+    // Build list and sort by location
+    const rows = [];
     for (const docSnap of snap.docs) {
       const data = docSnap.data();
       try {
         const title = await decryptText(data.titleCipher, data.titleIv);
-        const li = document.createElement('li');
-        li.className = 'case-item';
-        const titleSpan = document.createElement('span');
-        titleSpan.className = 'case-title';
-        titleSpan.textContent = title;
-        li.appendChild(titleSpan);
-
-        const actions = document.createElement('div');
-        actions.className = 'case-actions';
-
-        const editBtn = document.createElement('button');
-        editBtn.className = 'icon-btn';
-        editBtn.textContent = '✏️';
-        editBtn.setAttribute('aria-label', 'Edit case title');
-        editBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const newTitle = (prompt('Edit case title', title) || '').trim();
-          if (!newTitle) return;
-          const { cipher, iv } = await encryptText(newTitle);
-          await updateDoc(doc(db, 'cases', docSnap.id), { titleCipher: cipher, titleIv: iv });
-          if (currentCaseId === docSnap.id) caseTitleEl.textContent = newTitle;
-          showToast('Case title updated');
-        });
-        actions.appendChild(editBtn);
-
-        const delBtn = document.createElement('button');
-        delBtn.className = 'icon-btn delete-btn';
-        delBtn.textContent = '🗑';
-        delBtn.setAttribute('aria-label', 'Delete case');
-        delBtn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          if (!confirm('Delete this case and all its items?')) return;
-          await deleteCaseDeep(docSnap.id);
-          if (currentCaseId === docSnap.id) showCaseList();
-          showToast('Case deleted');
-        });
-        actions.appendChild(delBtn);
-
-        li.appendChild(actions);
-        li.addEventListener('click', () => openCase(docSnap.id, title, 'list'));
-        caseListEl.appendChild(li);
+        const location = (data.location || '').trim();
+        rows.push({ docSnap, title, location });
       } catch (err) {
         console.error('Skipping undecryptable case', err);
       }
+    }
+    rows.sort((a, b) => {
+      const la = a.location || '\uFFFF';
+      const lb = b.location || '\uFFFF';
+      const byLoc = la.localeCompare(lb);
+      if (byLoc !== 0) return byLoc;
+      return a.title.localeCompare(b.title);
+    });
+
+    for (const { docSnap, title, location } of rows) {
+      const li = document.createElement('li');
+      li.className = 'case-item';
+      const left = document.createElement('div');
+      left.style.display = 'flex';
+      left.style.alignItems = 'center';
+      left.style.gap = '6px';
+      left.style.flex = '1 1 auto';
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'case-title';
+      titleSpan.textContent = title;
+      left.appendChild(titleSpan);
+      // Location chip (clickable to edit)
+      const chip = document.createElement('span');
+      chip.className = 'chip location';
+      const renderChip = (val) => { chip.textContent = `Location: ${val || 'None'}`; };
+      renderChip(location);
+      left.appendChild(chip);
+      // Prevent chip click from opening the case
+      chip.addEventListener('mousedown', (e) => e.stopPropagation());
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Toggle select next to chip
+        const existing = left.querySelector('select.location-select');
+        if (existing) { existing.remove(); return; }
+        const sel = document.createElement('select');
+        sel.className = 'location-select';
+        const none = document.createElement('option'); none.value=''; none.textContent='No location'; sel.appendChild(none);
+        for (const l of locationsCache) { const opt=document.createElement('option'); opt.value=l.name; opt.textContent=l.name; sel.appendChild(opt);} 
+        sel.value = location || '';
+        const stop = (ev) => ev.stopPropagation();
+        sel.addEventListener('mousedown', stop);
+        sel.addEventListener('click', stop);
+        sel.addEventListener('keydown', stop);
+        sel.addEventListener('change', async (ev) => {
+          ev.stopPropagation();
+          const newVal = sel.value || null;
+          try {
+            await updateDoc(doc(db, 'cases', docSnap.id), { location: newVal });
+            renderChip(newVal);
+          } catch (err) {
+            console.error('Failed to update location', err);
+            showToast('Failed to update location');
+          } finally {
+            sel.remove();
+          }
+        }, { once: true });
+        chip.insertAdjacentElement('afterend', sel);
+        sel.focus();
+      });
+      li.appendChild(left);
+
+      const actions = document.createElement('div');
+      actions.className = 'case-actions';
+
+      const editBtn = document.createElement('button');
+      editBtn.className = 'icon-btn';
+      editBtn.textContent = '✏️';
+      editBtn.setAttribute('aria-label', 'Edit case title');
+      editBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const newTitle = (prompt('Edit case title', title) || '').trim();
+        if (!newTitle) return;
+        const { cipher, iv } = await encryptText(newTitle);
+        await updateDoc(doc(db, 'cases', docSnap.id), { titleCipher: cipher, titleIv: iv });
+        if (currentCaseId === docSnap.id) caseTitleEl.textContent = newTitle;
+        showToast('Case title updated');
+      });
+      actions.appendChild(editBtn);
+
+      // Prevent clicks in actions area from opening the case
+      actions.addEventListener('click', (e) => e.stopPropagation());
+      actions.addEventListener('mousedown', (e) => e.stopPropagation());
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'icon-btn delete-btn';
+      delBtn.textContent = '🗑';
+      delBtn.setAttribute('aria-label', 'Delete case');
+      delBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm('Delete this case and all its items?')) return;
+        await deleteCaseDeep(docSnap.id);
+        if (currentCaseId === docSnap.id) showCaseList();
+        showToast('Case deleted');
+      });
+      actions.appendChild(delBtn);
+
+      li.appendChild(actions);
+      li.addEventListener('click', () => openCase(docSnap.id, title, 'list'));
+      caseListEl.appendChild(li);
     }
   });
 }
@@ -794,13 +858,16 @@ function bindCaseForm() {
     const title = caseInput.value.trim();
     if (!title) return;
     const { cipher, iv } = await encryptText(title);
+    const location = caseLocationSel ? (caseLocationSel.value || null) : null;
     await addDoc(collection(db, 'cases'), {
       titleCipher: cipher,
       titleIv: iv,
       createdAt: serverTimestamp(),
       username,
+      location,
     });
     caseInput.value = '';
+    if (caseLocationSel) caseLocationSel.value = '';
   });
 }
 
@@ -871,6 +938,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   caseListSection = document.getElementById('case-list-section');
   caseForm = document.getElementById('case-form');
   caseInput = document.getElementById('case-input');
+  caseLocationSel = document.getElementById('case-location');
   caseDetailEl = document.getElementById('case-detail');
   caseTitleEl = document.getElementById('case-title');
   backBtn = document.getElementById('back-btn');
@@ -1010,7 +1078,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   username = await showUserSelectModal();
   if (!username) return;
   startRealtimeCases();
-  // Start manual users list
+  // Start settings (users + locations)
   startRealtimeUsers();
   // Default tab
   showMainTab('cases');
@@ -1049,7 +1117,9 @@ function startRealtimeUsers() {
   const addBtn = document.getElementById('add-user-btn');
   const menu = document.getElementById('users-menu');
   const btn = document.getElementById('users-btn');
-  if (!list || !addBtn || !menu || !btn) return;
+  const locList = document.getElementById('location-list');
+  const addLocBtn = document.getElementById('add-location-btn');
+  if (!list || !addBtn || !menu || !btn || !locList || !addLocBtn) return;
 
   // Toggle dropdown
   const setOpen = (open) => {
@@ -1122,6 +1192,96 @@ function startRealtimeUsers() {
     // Update composer assignee select with latest users
     populateComposerAssignees();
   });
+
+  // Locations realtime
+  const qLoc = query(collection(db, 'locations'), orderBy('name'));
+  if (unsubLocations) { unsubLocations(); unsubLocations = null; }
+  unsubLocations = onSnapshot(qLoc, (snap) => {
+    locList.innerHTML = '';
+    locationsCache = [];
+    for (const d of snap.docs) {
+      const data = d.data();
+      const name = (data.name || '').trim() || 'Unnamed';
+      locationsCache.push({ id: d.id, name });
+
+      const li = document.createElement('li');
+      const nameBtn = document.createElement('button');
+      nameBtn.className = 'name icon-btn';
+      nameBtn.textContent = name;
+
+      const edit = document.createElement('button');
+      edit.className = 'icon-btn';
+      edit.textContent = '✏️';
+      edit.setAttribute('aria-label', `Edit ${name}`);
+      edit.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const next = (prompt('Edit location', name) || '').trim();
+        if (!next || next === name) return;
+        try {
+          await updateDoc(doc(db, 'locations', d.id), { name: next });
+        } catch (err) {
+          console.error('Failed to update location', err);
+          showToast('Failed to update location (permissions)');
+        }
+      });
+
+      const del = document.createElement('button');
+      del.className = 'icon-btn delete-btn';
+      del.textContent = '🗑';
+      del.setAttribute('aria-label', `Delete ${name}`);
+      del.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Delete location '${name}'?`)) return;
+        try {
+          await deleteDoc(doc(db, 'locations', d.id));
+        } catch (err) {
+          console.error('Failed to delete location', err);
+          showToast('Failed to delete location (permissions)');
+        }
+      });
+
+      li.appendChild(nameBtn);
+      li.appendChild(edit);
+      li.appendChild(del);
+      locList.appendChild(li);
+    }
+    // Update case creation select with latest locations
+    populateCaseLocationSelect();
+  }, (err) => {
+    console.error('Locations listener error', err);
+    showToast('Cannot access locations (permissions)');
+  });
+
+  // Add location
+  addLocBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const name = (prompt('Add location name') || '').trim();
+    if (!name) return;
+    try {
+      await addDoc(collection(db, 'locations'), { name, createdAt: serverTimestamp() });
+    } catch (err) {
+      console.error('Failed to add location', err);
+      showToast('Failed to add location (permissions)');
+    }
+  });
+}
+
+function populateCaseLocationSelect() {
+  const sel = document.getElementById('case-location');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'No location';
+  sel.appendChild(none);
+  for (const l of locationsCache) {
+    const opt = document.createElement('option');
+    opt.value = l.name;
+    opt.textContent = l.name;
+    sel.appendChild(opt);
+  }
+  sel.value = prev || '';
 }
 
 function openUser(name) {

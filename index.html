@@ -17,13 +17,19 @@
     </div>
     <div class="hint">Encrypted case tracker</div>
     <div class="users-dropdown">
-      <button id="users-btn" class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="users-menu">Users ▾</button>
+      <button id="users-btn" class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="users-menu">Settings ▾</button>
       <div id="users-menu" class="users-menu" role="menu" hidden>
         <div class="users-menu-header">
           <span>Users</span>
           <button id="add-user-btn" class="icon-btn small" aria-label="Add user">➕</button>
         </div>
         <ul id="user-list" class="user-list" aria-label="Users"></ul>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:6px 0;">
+        <div class="users-menu-header">
+          <span>Locations</span>
+          <button id="add-location-btn" class="icon-btn small" aria-label="Add location">➕</button>
+        </div>
+        <ul id="location-list" class="user-list" aria-label="Locations"></ul>
       </div>
     </div>
   </header>
@@ -37,6 +43,9 @@
       <ul id="case-list"></ul>
       <form id="case-form" class="stack">
         <input id="case-input" placeholder="New case title" aria-label="New case title">
+        <select id="case-location" aria-label="Location">
+          <option value="">No location</option>
+        </select>
         <button type="submit" class="primary" aria-label="Add case">➕ Add Case</button>
       </form>
     </section>
