@@ -29,6 +29,7 @@ let key, username;
 let caseListSection, caseListEl, caseForm, caseInput;
 let caseDetailEl, caseTitleEl, backBtn;
 let taskForm, taskInput, taskListEl;
+let taskAssigneeEl, taskPriorityEl, composerOptsEl;
 let noteForm, noteInput, notesListEl;
 let tabTasksBtn, tabNotesBtn;
 let userDetailEl, userTitleEl, userTaskListEl, userBackBtn;
@@ -45,8 +46,13 @@ let unsubUserTasks = [];
 let userPerCase = new Map(); // caseId -> [{ taskId, text, status }]
 let userCaseTitles = new Map(); // caseId -> title
 let currentUserFilter = 'all';
-let userFilterEl;
-let userFilterByName = new Map(); // username -> last filter
+let userFilterEl; // legacy single-select (no longer used)
+let currentUserStatusSet = new Set(['open', 'in progress', 'complete']);
+let currentUserPriorityFilter = 'all';
+let currentUserSort = 'none';
+let userStatusEls = [];
+let userPriorityFilterEl, userSortEl;
+let userFilterByName = new Map(); // username -> { statuses: [...], priority: 'all'|'high'|'medium'|'low', sort: 'none'|'pri-asc'|'pri-desc' }
 
 // --- Crypto helpers
 async function deriveKey(passphrase) {
@@ -211,9 +217,9 @@ function startRealtimeTasks(caseId) {
       li.className = 'task-item';
       li.dataset.status = status;
 
-      const titleSpan = document.createElement('span');
-      titleSpan.className = 'task-title';
-      titleSpan.textContent = text;
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'task-title';
+        titleSpan.textContent = text;
 
         const taskMain = document.createElement('div');
         taskMain.className = 'task-main';
@@ -245,23 +251,67 @@ function startRealtimeTasks(caseId) {
         taskMain.appendChild(titleSpan);
         li.appendChild(taskMain);
 
+        // chips under title (priority)
+        const chips = document.createElement('div');
+        chips.className = 'chips';
+        if (data.priority) {
+          const pri = document.createElement('span');
+          const val = data.priority;
+          pri.className = 'chip ' + (val === 'high' ? 'pri-high' : val === 'medium' ? 'pri-medium' : 'pri-low');
+          pri.textContent = `Priority: ${val}`;
+          chips.appendChild(pri);
+        }
+        if (data.assignee) {
+          const as = document.createElement('span');
+          as.className = 'chip';
+          const av = document.createElement('span');
+          av.className = 'avatar';
+          const initials = data.assignee.split(/\s+/).map(s=>s[0]).join('').slice(0,2).toUpperCase();
+          av.textContent = initials || 'U';
+          const name = document.createElement('span');
+          name.textContent = data.assignee;
+          as.appendChild(av); as.appendChild(name);
+          chips.appendChild(as);
+        }
+        if (chips.children.length) li.appendChild(chips);
 
-        const del = document.createElement('button');
-        del.className = 'icon-btn delete-btn';
-        del.textContent = '🗑';
-        del.setAttribute('aria-label', 'Delete task');
-        del.addEventListener('click', async () => {
-          await deleteDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id));
+
+        // Actions menu (⋯)
+        const actionsWrap = document.createElement('div');
+        actionsWrap.className = 'actions-menu';
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'icon-btn';
+        menuBtn.setAttribute('aria-label', 'More actions');
+        menuBtn.textContent = '⋯';
+        actionsWrap.appendChild(menuBtn);
+        const panel = document.createElement('div');
+        panel.className = 'menu-panel';
+        panel.hidden = true;
+
+        const addItem = (label, onClick, opts = {}) => {
+          const { danger = false, autoClose = true } = opts;
+          const b = document.createElement('button');
+          b.className = 'menu-item' + (danger ? ' delete-btn' : '');
+          b.textContent = label;
+          b.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onClick();
+            if (autoClose) panel.hidden = true;
+          });
+          panel.appendChild(b);
+        };
+
+        addItem('Edit', async () => {
+          const current = titleSpan.textContent;
+          const next = (prompt('Edit task', current) || '').trim();
+          if (!next || next === current) return;
+          const { cipher: textCipher, iv: textIv } = await encryptText(next);
+          await updateDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id), { textCipher, textIv });
+          titleSpan.textContent = next;
+          showToast('Task updated');
         });
 
-
-        // Quick reassign button (popup select)
-        const reBtn = document.createElement('button');
-        reBtn.className = 'icon-btn';
-        reBtn.textContent = '👤';
-        reBtn.setAttribute('aria-label', 'Reassign task');
-        reBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
+        addItem('Assign', () => {
           const sel = document.createElement('select');
           sel.className = 'assignee-select';
           const none = document.createElement('option');
@@ -278,37 +328,29 @@ function startRealtimeTasks(caseId) {
           sel.addEventListener('change', async () => {
             await updateDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id), { assignee: sel.value || null });
             sel.remove();
+            panel.hidden = true;
             showToast('Assignee updated');
           }, { once: true });
-          const onDocClick = (ev) => {
-            if (ev.target !== sel) {
-              sel.remove();
-              document.removeEventListener('click', onDocClick, true);
-            }
-          };
-          document.addEventListener('click', onDocClick, true);
-          actions.insertBefore(sel, reBtn.nextSibling);
+          panel.appendChild(sel);
           sel.focus();
-        });
-        actions.appendChild(reBtn);
+        }, { autoClose: false });
 
-        // Edit task button
-        const edit = document.createElement('button');
-        edit.className = 'icon-btn';
-        edit.textContent = '✏️';
-        edit.setAttribute('aria-label', 'Edit task');
-        edit.addEventListener('click', async () => {
-          const current = titleSpan.textContent;
-          const next = (prompt('Edit task', current) || '').trim();
-          if (!next || next === current) return;
-          const { cipher: textCipher, iv: textIv } = await encryptText(next);
-          await updateDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id), { textCipher, textIv });
-          titleSpan.textContent = next;
-          showToast('Task updated');
-        });
-        actions.appendChild(edit);
+        addItem('Delete', async () => {
+          if (!confirm('Delete this task?')) return;
+          await deleteDoc(doc(db, 'cases', caseId, 'tasks', docSnap.id));
+        }, { danger: true, autoClose: true });
 
-        actions.appendChild(del);
+        actionsWrap.appendChild(panel);
+        actions.appendChild(actionsWrap);
+
+      const toggleMenu = (open) => { panel.hidden = !open; };
+      menuBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(panel.hidden); });
+      document.addEventListener('click', (e) => {
+        if (panel.hidden) return;
+        const ae = document.activeElement;
+        const interactingInside = panel.contains(e.target) || (ae && panel.contains(ae));
+        if (!interactingInside && e.target !== menuBtn) toggleMenu(false);
+      });
 
         const toggle = document.createElement('button');
         toggle.type = 'button';
@@ -529,6 +571,12 @@ function bindCaseForm() {
 }
 
 function bindTaskForm() {
+  populateComposerAssignees();
+  if (document.getElementById('task-input') && document.getElementById('composer-opts')) {
+    document.getElementById('task-input').addEventListener('focus', () => {
+      document.getElementById('composer-opts').hidden = false;
+    });
+  }
   taskForm.addEventListener('submit', async e => {
     e.preventDefault();
     if (!currentCaseId) return;
@@ -537,11 +585,36 @@ function bindTaskForm() {
     if (!text) return;
     const { cipher: textCipher, iv: textIv } = await encryptText(text);
     const { cipher: statusCipher, iv: statusIv } = await encryptText(statusVal);
+    const assigneeSel = document.getElementById('task-assignee');
+    const priSel = document.getElementById('task-priority');
+    const assignee = assigneeSel ? (assigneeSel.value || null) : null;
+    const priority = priSel ? (priSel.value || null) : null;
     await addDoc(collection(db, 'cases', currentCaseId, 'tasks'), {
-      textCipher, textIv, statusCipher, statusIv, createdAt: serverTimestamp(), username,
+      textCipher, textIv, statusCipher, statusIv, createdAt: serverTimestamp(), username, assignee, priority,
     });
     taskInput.value = '';
+    if (assigneeSel) assigneeSel.value = '';
+    if (priSel) priSel.value = '';
   });
+}
+
+// Keep the composer assignee list in sync with usersCache
+function populateComposerAssignees() {
+  const sel = document.getElementById('task-assignee');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = 'Unassigned';
+  sel.appendChild(none);
+  for (const u of usersCache) {
+    const opt = document.createElement('option');
+    opt.value = u.username;
+    opt.textContent = u.username;
+    sel.appendChild(opt);
+  }
+  sel.value = prev || '';
 }
 
 function bindNoteForm() {
@@ -570,6 +643,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   taskForm = document.getElementById('task-form');
   taskInput = document.getElementById('task-input');
   taskListEl = document.getElementById('task-list');
+  taskAssigneeEl = document.getElementById('task-assignee');
+  taskPriorityEl = document.getElementById('task-priority');
+  composerOptsEl = document.getElementById('composer-opts');
   noteForm = document.getElementById('note-form');
   noteInput = document.getElementById('note-input');
   notesListEl = document.getElementById('notes-list');
@@ -581,6 +657,9 @@ window.addEventListener('DOMContentLoaded', async () => {
   userBackBtn = document.getElementById('user-back-btn');
   brandHome = document.getElementById('brand-home');
   userFilterEl = document.getElementById('user-filter');
+  userStatusEls = Array.from(document.querySelectorAll('.user-status'));
+  userPriorityFilterEl = document.getElementById('user-priority-filter');
+  userSortEl = document.getElementById('user-sort');
 
   bindCaseForm();
   bindTaskForm();
@@ -619,16 +698,28 @@ window.addEventListener('DOMContentLoaded', async () => {
       showCaseList();
     });
   }
-  if (userFilterEl) {
-    userFilterEl.addEventListener('change', () => {
-      currentUserFilter = userFilterEl.value;
-      if (currentUserPageName) userFilterByName.set(currentUserPageName, currentUserFilter);
+  // Status multi-select checkboxes
+  if (userStatusEls.length) {
+    userStatusEls.forEach(cb => {
+      cb.addEventListener('change', () => {
+        const vals = userStatusEls.filter(x => x.checked).map(x => x.value);
+        currentUserStatusSet = new Set(vals.length ? vals : []);
+        saveUserFilterState();
+        renderUserTasks();
+      });
+    });
+  }
+  if (userPriorityFilterEl) {
+    userPriorityFilterEl.addEventListener('change', () => {
+      currentUserPriorityFilter = userPriorityFilterEl.value;
+      saveUserFilterState();
       renderUserTasks();
     });
   }
-  if (userFilterEl) {
-    userFilterEl.addEventListener('change', () => {
-      currentUserFilter = userFilterEl.value;
+  if (userSortEl) {
+    userSortEl.addEventListener('change', () => {
+      currentUserSort = userSortEl.value;
+      saveUserFilterState();
       renderUserTasks();
     });
   }
@@ -750,6 +841,8 @@ function startRealtimeUsers() {
       li.appendChild(del);
       list.appendChild(li);
     }
+    // Update composer assignee select with latest users
+    populateComposerAssignees();
   });
 }
 function openUser(name) {
@@ -758,11 +851,31 @@ function openUser(name) {
   if (caseListSection) caseListSection.style.display = 'none';
   caseDetailEl.hidden = true;
   userDetailEl.hidden = false;
-  // Restore last-used filter for this user within the session
-  const saved = userFilterByName.has(name) ? userFilterByName.get(name) : 'all';
-  currentUserFilter = saved;
-  if (userFilterEl) { userFilterEl.value = saved; }
+  // Restore last-used filters (multi-status, priority, sort) for this user
+  const saved = userFilterByName.get(name);
+  if (saved && typeof saved === 'object') {
+    currentUserStatusSet = new Set(saved.statuses || ['open','in progress','complete']);
+    currentUserPriorityFilter = saved.priority || 'all';
+    currentUserSort = saved.sort || 'none';
+  } else {
+    currentUserStatusSet = new Set(['open','in progress','complete']);
+    currentUserPriorityFilter = 'all';
+    currentUserSort = 'none';
+  }
+  // Reflect in controls
+  if (userStatusEls.length) userStatusEls.forEach(cb => cb.checked = currentUserStatusSet.has(cb.value));
+  if (userPriorityFilterEl) userPriorityFilterEl.value = currentUserPriorityFilter;
+  if (userSortEl) userSortEl.value = currentUserSort;
   startRealtimeUserTasks(name);
+}
+
+function saveUserFilterState() {
+  if (!currentUserPageName) return;
+  userFilterByName.set(currentUserPageName, {
+    statuses: Array.from(currentUserStatusSet),
+    priority: currentUserPriorityFilter,
+    sort: currentUserSort,
+  });
 }
 
 async function startRealtimeUserTasks(name) {
@@ -825,7 +938,10 @@ function renderUserTasks() {
     caseCard.appendChild(header);
 
     const ul = document.createElement('ul');
-    const sorted = [...items].sort((a, b) => 0); // maintain fetch order; or could sort by text
+    const priVal = (p) => p === 'high' ? 3 : p === 'medium' ? 2 : p === 'low' ? 1 : 0;
+    let sorted = [...items];
+    if (currentUserSort === 'pri-desc') sorted.sort((a,b) => priVal(b.priority) - priVal(a.priority));
+    else if (currentUserSort === 'pri-asc') sorted.sort((a,b) => priVal(a.priority) - priVal(b.priority));
     for (const it of sorted) {
       const li = document.createElement('li');
       li.className = 'task-item';
@@ -856,17 +972,48 @@ function renderUserTasks() {
       taskMain.appendChild(statusBtn);
       taskMain.appendChild(titleSpan);
       li.appendChild(taskMain);
+      // Chips under title (priority)
+      const chips = document.createElement('div');
+      chips.className = 'chips';
+      if (it.priority) {
+        const pri = document.createElement('span');
+        const val = it.priority;
+        pri.className = 'chip ' + (val === 'high' ? 'pri-high' : val === 'medium' ? 'pri-medium' : 'pri-low');
+        pri.textContent = `Priority: ${val}`;
+        chips.appendChild(pri);
+      }
+      if (chips.children.length) li.appendChild(chips);
 
       const actions = document.createElement('div');
       actions.className = 'task-actions';
       li.appendChild(actions);
 
-      // Edit
-      const editBtn = document.createElement('button');
-      editBtn.className = 'icon-btn';
-      editBtn.textContent = '✏️';
-      editBtn.setAttribute('aria-label', 'Edit task');
-      editBtn.addEventListener('click', async () => {
+      // Actions menu (⋯)
+      const actionsWrap = document.createElement('div');
+      actionsWrap.className = 'actions-menu';
+      const menuBtn = document.createElement('button');
+      menuBtn.className = 'icon-btn';
+      menuBtn.setAttribute('aria-label', 'More actions');
+      menuBtn.textContent = '⋯';
+      actionsWrap.appendChild(menuBtn);
+      const panel = document.createElement('div');
+      panel.className = 'menu-panel';
+      panel.hidden = true;
+
+      const addItem = (label, onClick, opts = {}) => {
+        const { danger = false, autoClose = true } = opts;
+        const b = document.createElement('button');
+        b.className = 'menu-item' + (danger ? ' delete-btn' : '');
+        b.textContent = label;
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onClick();
+          if (autoClose) panel.hidden = true;
+        });
+        panel.appendChild(b);
+      };
+
+      addItem('Edit', async () => {
         const current = titleSpan.textContent;
         const next = (prompt('Edit task', current) || '').trim();
         if (!next || next === current) return;
@@ -875,30 +1022,8 @@ function renderUserTasks() {
         titleSpan.textContent = next;
         showToast('Task updated');
       });
-      actions.appendChild(editBtn);
 
-      // Delete
-      const delBtn = document.createElement('button');
-      delBtn.className = 'icon-btn delete-btn';
-      delBtn.textContent = '🗑';
-      delBtn.setAttribute('aria-label', 'Delete task');
-      delBtn.addEventListener('click', async () => {
-        if (!confirm('Delete this task?')) return;
-        await deleteDoc(doc(db, 'cases', caseId, 'tasks', it.taskId));
-        li.remove();
-        const current = parseInt(caseCard.querySelector('.badge')?.textContent || '1', 10);
-        if (!Number.isNaN(current) && current > 0) caseCard.querySelector('.badge').textContent = String(current - 1);
-        showToast('Task deleted');
-      });
-      actions.appendChild(delBtn);
-
-      // Reassign quick button
-      const reBtn = document.createElement('button');
-      reBtn.className = 'icon-btn';
-      reBtn.textContent = '👤';
-      reBtn.setAttribute('aria-label', 'Reassign task');
-      reBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+      addItem('Assign', () => {
         const sel = document.createElement('select');
         sel.className = 'assignee-select';
         const none = document.createElement('option');
@@ -921,19 +1046,33 @@ function renderUserTasks() {
             if (!Number.isNaN(current) && current > 0) caseCard.querySelector('.badge').textContent = String(current - 1);
           }
           sel.remove();
+          panel.hidden = true;
           showToast('Task reassigned');
         }, { once: true });
-        const onDocClick = (ev) => {
-          if (ev.target !== sel) {
-            sel.remove();
-            document.removeEventListener('click', onDocClick, true);
-          }
-        };
-        document.addEventListener('click', onDocClick, true);
-        actions.insertBefore(sel, reBtn.nextSibling);
+        panel.appendChild(sel);
         sel.focus();
+      }, { autoClose: false });
+
+      addItem('Delete', async () => {
+        if (!confirm('Delete this task?')) return;
+        await deleteDoc(doc(db, 'cases', caseId, 'tasks', it.taskId));
+        li.remove();
+        const current = parseInt(caseCard.querySelector('.badge')?.textContent || '1', 10);
+        if (!Number.isNaN(current) && current > 0) caseCard.querySelector('.badge').textContent = String(current - 1);
+        showToast('Task deleted');
+      }, { danger: true, autoClose: true });
+
+      actionsWrap.appendChild(panel);
+      actions.appendChild(actionsWrap);
+
+      const toggleMenu = (open) => { panel.hidden = !open; };
+      menuBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(panel.hidden); });
+      document.addEventListener('click', (e) => {
+        if (panel.hidden) return;
+        const ae = document.activeElement;
+        const interactingInside = panel.contains(e.target) || (ae && panel.contains(ae));
+        if (!interactingInside && e.target !== menuBtn) toggleMenu(false);
       });
-      actions.appendChild(reBtn);
 
       // Comments toggle + count
       const toggle = document.createElement('button');

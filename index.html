@@ -46,11 +46,28 @@
       </div>
 
       <section id="tasks" role="tabpanel" aria-labelledby="tab-tasks">
-        <h3><span class="emoji" aria-hidden="true">✅</span> Tasks</h3>
-        <form id="task-form" class="stack">
-          <input id="task-input" placeholder="Task description" aria-label="Task description">
-          <button type="submit" class="primary" aria-label="Add task">➕ Add Task</button>
+        <form id="task-form" class="composer" autocomplete="off">
+          <button type="button" class="icon-btn" aria-hidden="true" tabindex="-1">+</button>
+          <input id="task-input" placeholder="Add a task…" aria-label="Task description">
+          <button type="submit" class="primary" aria-label="Add task">Add</button>
         </form>
+        <div id="composer-opts" class="composer-opts" hidden>
+          <label>
+            Assignee
+            <select id="task-assignee" class="assignee-select">
+              <option value="">Unassigned</option>
+            </select>
+          </label>
+          <label>
+            Priority
+            <select id="task-priority">
+              <option value="">None</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+        </div>
         <ul id="task-list"></ul>
       </section>
 
@@ -68,13 +85,27 @@
       <button id="user-back-btn" class="back-btn" aria-label="Back">← Back</button>
       <h2 id="user-title" class="case-heading"></h2>
       <div class="toolbar" id="user-toolbar">
-        <label for="user-filter">Filter:</label>
-        <select id="user-filter" aria-label="Filter tasks">
-          <option value="all">All</option>
-          <option value="open">Open</option>
-          <option value="in progress">In Progress</option>
-          <option value="complete">Complete</option>
-        </select>
+        <div class="filter-group" id="user-status-group" aria-label="Filter by status">
+          <span class="meta">Status:</span>
+          <label><input type="checkbox" class="user-status" value="open" checked> Open</label>
+          <label><input type="checkbox" class="user-status" value="in progress" checked> In progress</label>
+          <label><input type="checkbox" class="user-status" value="complete" checked> Complete</label>
+        </div>
+        <label>Priority
+          <select id="user-priority-filter" aria-label="Filter by priority">
+            <option value="all">All</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+        <label>Sort
+          <select id="user-sort" aria-label="Sort tasks">
+            <option value="none">None</option>
+            <option value="pri-desc">Priority high → low</option>
+            <option value="pri-asc">Priority low → high</option>
+          </select>
+        </label>
       </div>
       <ul id="user-task-list"></ul>
     </section>
