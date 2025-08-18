@@ -1,0 +1,14 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "tasks",
+      "fieldPath": "assignee",
+      "queryScope": "COLLECTION_GROUP",
+      "indexes": [
+        { "order": "ASCENDING" },
+        { "order": "DESCENDING" }
+      ]
+    }
+  ]
+}

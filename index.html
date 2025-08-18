@@ -10,45 +10,76 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand" id="brand-home">
+      <span class="logo" aria-hidden="true">✤</span>
+      <span class="title">Catalist</span>
+    </div>
+    <div class="hint">Encrypted case tracker</div>
+    <div class="users-dropdown">
+      <button id="users-btn" class="icon-btn" aria-haspopup="true" aria-expanded="false" aria-controls="users-menu">Users ▾</button>
+      <div id="users-menu" class="users-menu" role="menu" hidden>
+        <div class="users-menu-header">
+          <span>Users</span>
+          <button id="add-user-btn" class="icon-btn small" aria-label="Add user">➕</button>
+        </div>
+        <ul id="user-list" class="user-list" aria-label="Users"></ul>
+      </div>
+    </div>
+  </header>
   <main class="app">
     <section id="case-list-section" class="card">
-      <h1>Cases</h1>
+      <h1><span class="emoji" aria-hidden="true">📁</span> Cases</h1>
       <ul id="case-list"></ul>
       <form id="case-form" class="stack">
-        <input id="case-input" placeholder="New case title">
-        <button type="submit" class="primary">Add Case</button>
+        <input id="case-input" placeholder="New case title" aria-label="New case title">
+        <button type="submit" class="primary" aria-label="Add case">➕ Add Case</button>
       </form>
     </section>
 
     <section id="case-detail" class="card" hidden>
-      <button id="back-btn" class="back-btn">&larr; Back</button>
-      <h2 id="case-title"></h2>
+      <button id="back-btn" class="back-btn" aria-label="Back to cases">← Back</button>
+      <h2 id="case-title" class="case-heading"></h2>
+      <div class="tabs" role="tablist" aria-label="Case sections">
+        <button id="tab-tasks" class="tab active" role="tab" aria-controls="tasks" aria-selected="true">Tasks</button>
+        <button id="tab-notes" class="tab" role="tab" aria-controls="notes" aria-selected="false">Notes</button>
+      </div>
 
-      <section id="tasks">
-        <h3>Tasks</h3>
+      <section id="tasks" role="tabpanel" aria-labelledby="tab-tasks">
+        <h3><span class="emoji" aria-hidden="true">✅</span> Tasks</h3>
         <form id="task-form" class="stack">
-          <input id="task-input" placeholder="Task description">
-          <select id="task-status" class="status-select" data-status="open">
-            <option value="open">Open</option>
-            <option value="in progress">In Progress</option>
-            <option value="complete">Complete</option>
-          </select>
-          <button type="submit" class="primary">Add Task</button>
+          <input id="task-input" placeholder="Task description" aria-label="Task description">
+          <button type="submit" class="primary" aria-label="Add task">➕ Add Task</button>
         </form>
         <ul id="task-list"></ul>
       </section>
 
-      <section id="notes">
-        <h3>Notes</h3>
+      <section id="notes" role="tabpanel" aria-labelledby="tab-notes" hidden>
+        <h3><span class="emoji" aria-hidden="true">📝</span> Notes</h3>
         <form id="note-form" class="stack">
-          <textarea id="note-input" placeholder="Add note..."></textarea>
-          <button type="submit" class="primary">Add Note</button>
+          <textarea id="note-input" placeholder="Add note..." aria-label="Note text"></textarea>
+          <button type="submit" class="primary" aria-label="Add note">➕ Add Note</button>
         </form>
         <ul id="notes-list"></ul>
       </section>
     </section>
+
+    <section id="user-detail" class="card" hidden>
+      <button id="user-back-btn" class="back-btn" aria-label="Back">← Back</button>
+      <h2 id="user-title" class="case-heading"></h2>
+      <div class="toolbar" id="user-toolbar">
+        <label for="user-filter">Filter:</label>
+        <select id="user-filter" aria-label="Filter tasks">
+          <option value="all">All</option>
+          <option value="open">Open</option>
+          <option value="in progress">In Progress</option>
+          <option value="complete">Complete</option>
+        </select>
+      </div>
+      <ul id="user-task-list"></ul>
+    </section>
   </main>
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
   <script type="module" src="script.js"></script>
 </body>
 </html>
-
