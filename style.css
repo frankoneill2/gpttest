@@ -477,9 +477,61 @@ button:focus-visible {
 }
 
 /* Case list item actions */
-#case-list li.case-item { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.case-item { display: block; }
+.case-item-header { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 #case-list li.case-item .case-title { flex: 1; }
 #case-list li.case-item .case-actions { display: flex; gap: 0.25rem; }
+
+/* Compact tasks under case card */
+.case-tasks-wrap { width: 100%; margin-top: 6px; }
+.case-tasks { margin: 0; padding-left: 0; display: flex; flex-direction: column; gap: 4px; }
+.case-task { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; color: #374151; padding: 4px 6px; border-radius: 8px; position: relative; }
+.case-task .task-text { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.case-task .status { font-weight: 700; width: 1.25rem; text-align: center; color: #1f2937; }
+.case-task .status-btn { background: none; border: none; cursor: pointer; font-weight: 700; width: 1.25rem; text-align: center; color: #1f2937; padding: 0; }
+.case-task .mini-chip { font-size: 11px; padding: 0 6px; height: 18px; display: inline-flex; align-items: center; border: 1px solid #e5e7eb; border-radius: 9999px; color: #374151; }
+.case-task .mini-avatar { width: 18px; height: 18px; border-radius: 9999px; background: #e5e7eb; color: #374151; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; cursor: pointer; }
+.case-tasks-toggle { background: none; border: 1px solid #e5e7eb; border-radius: 8px; padding: 2px 6px; color: #374151; }
+.case-tasks-more { background: none; border: 1px solid #e5e7eb; border-radius: 8px; padding: 2px 6px; color: #374151; margin-top: 6px; }
+.case-tasks-more { background: none; border: 1px solid #e5e7eb; border-radius: 8px; padding: 2px 6px; color: #374151; margin-top: 6px; }
+
+/* Tasteful status-based color coding for compact case tasks (override #case-list li background) */
+#case-list .case-task.s-open { border-left: 3px solid #3b82f6; background: #f2f7ff; }
+#case-list .case-task.s-inprogress { border-left: 3px solid #f59e0b; background: #fff7ea; }
+#case-list .case-task.s-complete { border-left: 3px solid #34d399; background: #effdf5; }
+#case-list .case-task.s-complete .task-text { color: #6b7280; text-decoration: line-through; }
+
+/* Assignee popup and tooltip */
+.assignee-panel {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: var(--shadow-md);
+  min-width: 160px;
+  padding: 4px;
+  z-index: 9998;
+}
+.assignee-option { display: block; width: 100%; text-align: left; background: none; border: none; padding: 8px 10px; border-radius: 6px; color: var(--text); cursor: pointer; }
+.assignee-option:hover { background: #f3f4f6; }
+.assignee-tip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  background: #111827;
+  color: #fff;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 9999;
+}
 
 /* Toast notifications */
 .toast-container {
@@ -552,15 +604,14 @@ button:focus-visible {
 .menu-item:hover { background: #f3f4f6; }
 
 /* Ensure case page color coding has priority */
-#task-list .task-item[data-status="open"] {
-  border-left: 4px solid #3b82f6;
-  background: #eff6ff;
-}
-#task-list .task-item[data-status="in progress"] {
-  border-left: 4px solid #f59e0b;
-  background: #fffbeb;
-}
-#task-list .task-item[data-status="complete"] {
-  border-left: 4px solid #34d399;
-  background: #dcfce7;
-}
+/* Compact color coding on case page task list */
+#task-list .case-task.s-open { border-left: 3px solid #3b82f6; background: #f2f7ff; }
+#task-list .case-task.s-inprogress { border-left: 3px solid #f59e0b; background: #fff7ea; }
+#task-list .case-task.s-complete { border-left: 3px solid #34d399; background: #effdf5; }
+#task-list .case-task.s-complete .task-text { color: #6b7280; text-decoration: line-through; }
+
+/* Compact color coding on My Tasks list */
+#user-task-list .case-task.s-open { border-left: 3px solid #3b82f6; background: #f2f7ff; }
+#user-task-list .case-task.s-inprogress { border-left: 3px solid #f59e0b; background: #fff7ea; }
+#user-task-list .case-task.s-complete { border-left: 3px solid #34d399; background: #effdf5; }
+#user-task-list .case-task.s-complete .task-text { color: #6b7280; text-decoration: line-through; }

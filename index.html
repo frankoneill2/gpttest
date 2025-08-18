@@ -39,7 +39,10 @@
       <button id="tab-my" class="tab" role="tab" aria-selected="false" aria-controls="user-detail">My Tasks</button>
     </div>
     <section id="case-list-section" class="card">
-      <h1><span class="emoji" aria-hidden="true">📁</span> Cases</h1>
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+        <h1 style="margin:0;"><span class="emoji" aria-hidden="true">📁</span> Cases</h1>
+        <button id="toggle-all-tasks" class="case-tasks-toggle" type="button" aria-label="Collapse all case tasks">Collapse all</button>
+      </div>
       <ul id="case-list"></ul>
       <form id="case-form" class="stack">
         <input id="case-input" placeholder="New case title" aria-label="New case title">
