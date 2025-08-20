@@ -395,13 +395,14 @@ async function loadCompactTasks(caseId, caseTitle, ul, moreBtn) {
 
     const limit = 4;
     const expanded = ul.dataset.expanded === 'true';
-    const visible = expanded ? items : items.slice(0, limit);
+    const nonCompleted = items.filter(i => i.status !== 'complete');
+    const visible = expanded ? items : nonCompleted.slice(0, limit);
 
     // Show/hide the more button
-    if (items.length > limit) {
+    const remainingCount = expanded ? 0 : (items.length - visible.length);
+    if (remainingCount > 0) {
       moreBtn.hidden = false;
-      const remaining = items.length - limit;
-      moreBtn.textContent = expanded ? 'Show less' : `Show more (${remaining})`;
+      moreBtn.textContent = expanded ? 'Show less' : `Show more (${remainingCount})`;
       moreBtn.onclick = (e) => {
         e.stopPropagation();
         ul.dataset.expanded = expanded ? 'false' : 'true';
