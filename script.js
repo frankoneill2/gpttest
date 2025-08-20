@@ -4,7 +4,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
 import {
   getFirestore, collection, addDoc, onSnapshot,
-  deleteDoc, updateDoc, doc, query, orderBy, serverTimestamp, getDocs, setDoc, collectionGroup, where, getDoc
+  deleteDoc, updateDoc, doc, query, orderBy, serverTimestamp, getDocs, setDoc, collectionGroup, where, getDoc, limit
 } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
 import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 
@@ -36,6 +36,7 @@ let userDetailEl, userTitleEl, userTaskListEl, userBackBtn;
 let brandHome;
 let currentCaseId = null;
 let collapseAll = false; // global state for compact tasks on case list
+let hideAllComments = false; // global show/hide comments on case list
 let backTarget = 'list'; // 'list' or 'user'
 let currentUserPageName = null;
 let unsubTasks = null;
@@ -45,6 +46,7 @@ let unsubLocations = null;
 let usersCache = [];
 let locationsCache = [];
 let unsubUserTasks = [];
+let pendingFocusTaskId = null; // when navigating from case list to a specific task
 // In-session compact order for case list preview: caseId -> [taskIds]
 let compactOrderByCase = new Map();
 // Toolbar filters for case tasks
@@ -124,7 +126,7 @@ function showCaseList() {
   compactOrderByCase = new Map();
 }
 
-async function openCase(id, title, source = 'list') {
+async function openCase(id, title, source = 'list', initialTab = 'notes') {
   currentCaseId = id;
   backTarget = source === 'user' ? 'user' : 'list';
   caseTitleEl.textContent = title;
@@ -133,8 +135,8 @@ async function openCase(id, title, source = 'list') {
   caseDetailEl.hidden = false;
   startRealtimeTasks(id);
   startRealtimeNotes(id);
-  // Show notes tab by default on open
-  showTab('notes');
+  // Open chosen tab
+  showTab(initialTab);
 }
 
 
@@ -281,11 +283,12 @@ function startRealtimeCases() {
       const actions = document.createElement('div');
       actions.className = 'case-actions';
 
-      // Show/hide compact tasks toggle (default shown)
+      // Show/hide compact tasks toggle (chevron)
       const tasksToggle = document.createElement('button');
       tasksToggle.type = 'button';
-      tasksToggle.className = 'case-tasks-toggle';
-      tasksToggle.textContent = 'Hide tasks';
+      tasksToggle.className = 'chev-btn';
+      tasksToggle.setAttribute('aria-label', 'Hide tasks');
+      tasksToggle.textContent = '▾';
       actions.appendChild(tasksToggle);
 
       const editBtn = document.createElement('button');
@@ -339,31 +342,31 @@ function startRealtimeCases() {
       moreBtn.className = 'case-tasks-more';
       moreBtn.hidden = true;
       tasksWrap.appendChild(moreBtn);
-      // keep clicks from opening case
-      tasksWrap.addEventListener('click', (e) => e.stopPropagation());
-      tasksWrap.addEventListener('mousedown', (e) => e.stopPropagation());
+      // allow clicking tasks to navigate; controls will stop propagation individually
       li.appendChild(tasksWrap);
 
       // Toggle behavior
       let tasksHidden = collapseAll;
       tasksWrap.hidden = tasksHidden;
-      tasksToggle.textContent = tasksHidden ? 'Show tasks' : 'Hide tasks';
+      tasksToggle.textContent = tasksHidden ? '▸' : '▾';
+      tasksToggle.setAttribute('aria-label', tasksHidden ? 'Show tasks' : 'Hide tasks');
       tasksToggle.addEventListener('click', (e) => {
         e.stopPropagation();
         tasksHidden = !tasksHidden;
         tasksWrap.hidden = tasksHidden;
-        tasksToggle.textContent = tasksHidden ? 'Show tasks' : 'Hide tasks';
+        tasksToggle.textContent = tasksHidden ? '▸' : '▾';
+        tasksToggle.setAttribute('aria-label', tasksHidden ? 'Show tasks' : 'Hide tasks');
       });
 
       // Load compact tasks (non-realtime snapshot)
-      loadCompactTasks(docSnap.id, tasksUl, moreBtn);
+      loadCompactTasks(docSnap.id, title, tasksUl, moreBtn);
 
       caseListEl.appendChild(li);
     }
   });
 }
 
-async function loadCompactTasks(caseId, ul, moreBtn) {
+async function loadCompactTasks(caseId, caseTitle, ul, moreBtn) {
   ul.innerHTML = '';
   try {
     const snap = await getDocs(collection(db, 'cases', caseId, 'tasks'));
@@ -403,7 +406,7 @@ async function loadCompactTasks(caseId, ul, moreBtn) {
         e.stopPropagation();
         ul.dataset.expanded = expanded ? 'false' : 'true';
         // Re-render with toggled state
-        loadCompactTasks(caseId, ul, moreBtn);
+        loadCompactTasks(caseId, caseTitle, ul, moreBtn);
       };
     } else {
       moreBtn.hidden = true;
@@ -413,6 +416,12 @@ async function loadCompactTasks(caseId, ul, moreBtn) {
       const li = document.createElement('li');
       const statusCls = it.status === 'in progress' ? 's-inprogress' : (it.status === 'complete' ? 's-complete' : 's-open');
       li.className = 'case-task ' + statusCls;
+      // Navigate to case tasks focused on this task when clicking the row
+      li.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pendingFocusTaskId = it.id;
+        openCase(caseId, caseTitle, 'list', 'tasks');
+      });
       const statusBtn = document.createElement('button');
       statusBtn.type = 'button';
       statusBtn.className = 'status-btn';
@@ -502,7 +511,7 @@ async function loadCompactTasks(caseId, ul, moreBtn) {
             ev.stopPropagation();
             try {
               await updateDoc(doc(db, 'cases', caseId, 'tasks', it.id), { assignee: value });
-              loadCompactTasks(caseId, ul, moreBtn);
+              loadCompactTasks(caseId, caseTitle, ul, moreBtn);
             } catch (err) {
               console.error('Failed to reassign task', err);
               showToast('Failed to reassign');
@@ -533,10 +542,35 @@ async function loadCompactTasks(caseId, ul, moreBtn) {
         setTimeout(() => document.addEventListener('click', onDocClick, true), 0);
       });
       li.appendChild(av);
+      // Minimal comments line (latest)
+      const cm = document.createElement('div');
+      cm.className = 'case-mini-comments';
+      cm.hidden = hideAllComments;
+      li.appendChild(cm);
+      loadLastComment(caseId, it.id, cm);
       ul.appendChild(li);
     }
   } catch (err) {
     console.error('Failed to load compact tasks for case', caseId, err);
+  }
+}
+
+async function loadLastComment(caseId, taskId, container) {
+  container.textContent = '';
+  try {
+    const snap = await getDocs(query(collection(db, 'cases', caseId, 'tasks', taskId, 'comments'), orderBy('createdAt', 'desc'), limit(1)));
+    if (snap.empty) { container.hidden = hideAllComments; return; }
+    const d = snap.docs[0].data();
+    const text = await decryptText(d.cipher, d.iv);
+    const author = d.username || '';
+    const line = document.createElement('div'); line.className = 'c-line';
+    if (author) {
+      const a = document.createElement('span'); a.className = 'c-author'; a.textContent = author + ':'; line.appendChild(a);
+    }
+    const t = document.createElement('span'); t.textContent = ' ' + text; line.appendChild(t);
+    container.appendChild(line);
+  } catch (err) {
+    // ignore comment load errors
   }
 }
 
@@ -548,11 +582,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const wraps = document.querySelectorAll('.case-tasks-wrap');
     wraps.forEach(w => { w.hidden = collapseAll; });
     const toggles = document.querySelectorAll('.case-tasks-toggle');
-    toggles.forEach(t => { if (t instanceof HTMLElement) t.textContent = collapseAll ? 'Show tasks' : 'Hide tasks'; });
+    toggles.forEach(t => {
+      if (!(t instanceof HTMLElement)) return;
+      if (t.id === 'toggle-all-tasks' || t.id === 'toggle-all-comments') return; // skip header controls
+      t.textContent = collapseAll ? 'Show tasks' : 'Hide tasks';
+    });
     btn.textContent = collapseAll ? 'Expand all' : 'Collapse all';
   };
   btn.addEventListener('click', () => { collapseAll = !collapseAll; apply(); });
   apply();
+});
+
+// Global comments show/hide on case list
+document.addEventListener('DOMContentLoaded', () => {
+  const cbtn = document.getElementById('toggle-all-comments');
+  if (!cbtn) return;
+  const applyComments = () => {
+    const c = document.querySelectorAll('.case-mini-comments');
+    c.forEach(el => { if (el instanceof HTMLElement) el.hidden = hideAllComments; });
+    cbtn.textContent = hideAllComments ? 'Show comments' : 'Hide comments';
+  };
+  cbtn.addEventListener('click', () => { hideAllComments = !hideAllComments; applyComments(); });
+  applyComments();
 });
 
 function startRealtimeTasks(caseId) {
@@ -975,15 +1026,26 @@ function renderCaseTasks() {
     // Reuse existing builder by simulating a single-item snapshot render
     // Build the same DOM fragment used in startRealtimeTasks for each item
     // Simplest: call a small builder
-    taskListEl.appendChild(buildTaskListItem(item));
+    const openComments = (pendingFocusTaskId && item.id === pendingFocusTaskId);
+    taskListEl.appendChild(buildTaskListItem(item, { openComments }));
+  }
+  if (pendingFocusTaskId) {
+    const target = document.getElementById('task-' + pendingFocusTaskId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target.classList.add('flash-highlight');
+      setTimeout(() => target.classList.remove('flash-highlight'), 1400);
+    }
+    pendingFocusTaskId = null;
   }
 }
 
-function buildTaskListItem(item) {
+function buildTaskListItem(item, opts = {}) {
   const { caseId, id: taskId, text, status, data } = item;
   const li = document.createElement('li');
   const statusCls = status === 'in progress' ? 's-inprogress' : (status === 'complete' ? 's-complete' : 's-open');
   li.className = 'case-task ' + statusCls;
+  li.id = 'task-' + taskId;
   // Status button
   const statusBtn = document.createElement('button');
   statusBtn.type = 'button';
@@ -1044,10 +1106,14 @@ function buildTaskListItem(item) {
   const toggle = document.createElement('button'); toggle.type='button'; toggle.className='icon-btn comment-toggle'; toggle.setAttribute('aria-label','Show comments'); toggle.textContent='💬';
   const countEl = document.createElement('span'); countEl.className='badge comment-count';
   li.appendChild(toggle); li.appendChild(countEl);
-  const commentSection = document.createElement('div'); commentSection.className='comment-section'; commentSection.hidden=true; const commentsList=document.createElement('ul'); commentsList.className='comments'; commentSection.appendChild(commentsList);
+  const commentSection = document.createElement('div'); commentSection.className='comment-section'; commentSection.hidden= !(opts && opts.openComments); const commentsList=document.createElement('ul'); commentsList.className='comments'; commentSection.appendChild(commentsList);
   const commentForm=document.createElement('form'); commentForm.className='comment-form'; const commentInput=document.createElement('input'); commentInput.placeholder='Add comment'; commentForm.appendChild(commentInput); const commentBtn=document.createElement('button'); commentBtn.className='icon-btn add-comment-btn'; commentBtn.type='submit'; commentBtn.textContent='➕'; commentBtn.setAttribute('aria-label','Add comment'); commentForm.appendChild(commentBtn); commentSection.appendChild(commentForm);
   let commentsLoaded=false; let commentCount=0; const updateToggle=()=>{ countEl.textContent = commentCount>0? String(commentCount):''; toggle.setAttribute('aria-label', commentSection.hidden?'Show comments':'Hide comments'); toggle.textContent = commentSection.hidden ? '💬' : '✖'; };
   updateToggle();
+  if (!commentSection.hidden && !commentsLoaded) {
+    startRealtimeComments(caseId, taskId, commentsList, (n)=>{ commentCount=n; updateToggle(); });
+    commentsLoaded = true;
+  }
   toggle.addEventListener('click', ()=>{ const h=commentSection.hidden; commentSection.hidden=!h; updateToggle(); if(h && !commentsLoaded){ startRealtimeComments(caseId, taskId, commentsList, (n)=>{ commentCount=n; updateToggle(); }); commentsLoaded=true; } });
   commentForm.addEventListener('submit', async (e)=>{ e.preventDefault(); const t=commentInput.value.trim(); if(!t) return; const tempLi=document.createElement('li'); tempLi.className='optimistic'; const span=document.createElement('span'); span.textContent = username ? `${username}: ${t}` : t; tempLi.appendChild(span); commentsList.appendChild(tempLi); commentInput.value=''; commentSection.hidden=false; updateToggle(); try{ const {cipher, iv}= await encryptText(t); await addDoc(collection(db,'cases',caseId,'tasks',taskId,'comments'),{cipher,iv,username,createdAt:serverTimestamp()}); if(!commentsLoaded){ startRealtimeComments(caseId,taskId,commentsList,(n)=>{ commentCount=n; updateToggle();}); commentsLoaded=true; } } catch(err){ tempLi.classList.add('failed'); showToast('Failed to add comment'); } });
   li.appendChild(commentSection);
