@@ -600,6 +600,8 @@ button:focus-visible {
   #case-list li.case-item .case-actions { order: 2; margin-left: auto; }
   /* Hide the redundant Cases header on mobile */
   #case-list-section > h1 { display: none; }
+  /* Make the first header child (title container) span full width */
+  .case-item-header > div:first-child { flex: 1 1 100%; min-width: 0; }
 }
 
 .toast {

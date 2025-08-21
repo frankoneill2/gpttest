@@ -240,14 +240,25 @@ function startRealtimeCases() {
       left.style.flex = '1 1 auto';
       const titleSpan = document.createElement('span');
       titleSpan.className = 'case-title';
-      titleSpan.textContent = title;
+      // Parse trailing ID in parentheses for subtitle
+      let mainTitle = title, idText = '';
+      const m = title.match(/^(.*?)(\s*\(([^)]+)\))\s*$/);
+      if (m) { mainTitle = m[1]; idText = m[3]; }
+      titleSpan.textContent = mainTitle;
       left.appendChild(titleSpan);
       // Location chip (clickable to edit)
       const chip = document.createElement('span');
       chip.className = 'chip location';
-      const renderChip = (val) => { chip.textContent = `Location: ${val || 'None'}`; };
+      const renderChip = (val) => { chip.textContent = `📍 ${val || 'None'}`; };
       renderChip(location);
-      left.appendChild(chip);
+      // Build a second-line container for subtitle + chip
+      const subinfo = document.createElement('div');
+      subinfo.className = 'case-subinfo-left';
+      if (idText) {
+        const idEl = document.createElement('span'); idEl.className = 'case-id'; idEl.textContent = `(${idText})`;
+        subinfo.appendChild(idEl);
+      }
+      subinfo.appendChild(chip);
       // Prevent chip click from opening the case
       chip.addEventListener('mousedown', (e) => e.stopPropagation());
       chip.addEventListener('click', (e) => {
@@ -291,42 +302,53 @@ function startRealtimeCases() {
       tasksToggle.textContent = '▾';
       actions.appendChild(tasksToggle);
 
-      const editBtn = document.createElement('button');
-      editBtn.className = 'icon-btn';
-      editBtn.textContent = '✏️';
-      editBtn.setAttribute('aria-label', 'Edit case title');
-      editBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const newTitle = (prompt('Edit case title', title) || '').trim();
+      // Overflow menu (⋯) for edit/delete
+      const actionsWrap = document.createElement('div');
+      actionsWrap.className = 'actions-menu';
+      const menuBtn = document.createElement('button');
+      menuBtn.className = 'icon-btn';
+      menuBtn.setAttribute('aria-label', 'More actions');
+      menuBtn.textContent = '⋯';
+      actionsWrap.appendChild(menuBtn);
+      const panel = document.createElement('div');
+      panel.className = 'menu-panel';
+      panel.hidden = true;
+      const addItem = (label, onClick, opts={}) => {
+        const { danger=false } = opts;
+        const b=document.createElement('button'); b.className='menu-item'+(danger?' delete-btn':''); b.textContent=label; b.addEventListener('click',(e)=>{ e.stopPropagation(); onClick(); panel.hidden=true;}); panel.appendChild(b);
+      };
+      addItem('Edit title', async () => {
+        const current = mainTitle;
+        const newTitle = (prompt('Edit case title', current) || '').trim();
         if (!newTitle) return;
         const { cipher, iv } = await encryptText(newTitle);
         await updateDoc(doc(db, 'cases', docSnap.id), { titleCipher: cipher, titleIv: iv });
         if (currentCaseId === docSnap.id) caseTitleEl.textContent = newTitle;
         showToast('Case title updated');
       });
-      actions.appendChild(editBtn);
+      addItem('Delete case', async () => {
+        if (!confirm('Delete this case and all its items?')) return;
+        await deleteCaseDeep(docSnap.id);
+        if (currentCaseId === docSnap.id) showCaseList();
+        showToast('Case deleted');
+      }, { danger: true });
+      actionsWrap.appendChild(panel);
+      actions.appendChild(actionsWrap);
 
       // Prevent clicks in actions area from opening the case
       actions.addEventListener('click', (e) => e.stopPropagation());
       actions.addEventListener('mousedown', (e) => e.stopPropagation());
 
-      const delBtn = document.createElement('button');
-      delBtn.className = 'icon-btn delete-btn';
-      delBtn.textContent = '🗑';
-      delBtn.setAttribute('aria-label', 'Delete case');
-      delBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (!confirm('Delete this case and all its items?')) return;
-        await deleteCaseDeep(docSnap.id);
-        if (currentCaseId === docSnap.id) showCaseList();
-        showToast('Case deleted');
-      });
-      actions.appendChild(delBtn);
+      // Overflow interactions
+      const toggleMenu = (open) => { panel.hidden = !open; };
+      menuBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(panel.hidden); });
+      document.addEventListener('click', (e) => { if (panel.hidden) return; const ae=document.activeElement; const inside=panel.contains(e.target)|| (ae && panel.contains(ae)); if (!inside && e.target!==menuBtn) toggleMenu(false); });
 
       // Header row that contains title/loc and actions
       const headerRow = document.createElement('div');
       headerRow.className = 'case-item-header';
       headerRow.appendChild(left);
+      headerRow.appendChild(subinfo);
       headerRow.appendChild(actions);
       li.appendChild(headerRow);
       li.addEventListener('click', () => openCase(docSnap.id, title, 'list'));
