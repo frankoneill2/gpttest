@@ -264,7 +264,7 @@ function startRealtimeCases() {
       chip.addEventListener('click', (e) => {
         e.stopPropagation();
         // Toggle select next to chip
-        const existing = left.querySelector('select.location-select');
+        const existing = subinfo.querySelector('select.location-select');
         if (existing) { existing.remove(); return; }
         const sel = document.createElement('select');
         sel.className = 'location-select';
