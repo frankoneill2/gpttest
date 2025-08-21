@@ -234,10 +234,7 @@ function startRealtimeCases() {
       const li = document.createElement('li');
       li.className = 'case-item';
       const left = document.createElement('div');
-      left.style.display = 'flex';
-      left.style.alignItems = 'center';
-      left.style.gap = '6px';
-      left.style.flex = '1 1 auto';
+      left.className = 'case-left';
       const titleSpan = document.createElement('span');
       titleSpan.className = 'case-title';
       // Parse trailing ID in parentheses for subtitle
