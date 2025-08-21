@@ -675,3 +675,23 @@ button:focus-visible {
 #user-task-list .case-task.s-inprogress { border-left: 3px solid #f59e0b; background: #fff7ea; }
 #user-task-list .case-task.s-complete { border-left: 3px solid #34d399; background: #effdf5; }
 #user-task-list .case-task.s-complete .task-text { color: #6b7280; text-decoration: line-through; }
+
+
+/* Controls row above case list */
+.controls-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin: 8px 0 16px; }
+.controls-group { display: flex; gap: 8px; }
+.case-tasks-toggle { padding: 8px 12px; border-radius: 12px; font-size: 0.95rem; }
+@media (max-width: 600px) {
+  .controls-row { margin: 12px 0 20px; }
+  .case-tasks-toggle { height: 44px; min-width: 44px; font-size: 1rem; }
+}
+
+/* Larger touch targets for per-case controls */
+.chev-btn { background: none; border: 1px solid #e5e7eb; border-radius: 12px; padding: 0; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; }
+@media (max-width: 600px) {
+  .chev-btn { width: 44px; height: 44px; font-size: 22px; }
+}
+.case-actions .icon-btn { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+@media (max-width: 600px) {
+  .case-actions .icon-btn { width: 44px; height: 44px; font-size: 20px; }
+}
